@@ -1,0 +1,10 @@
+# This makes an integration rule with three orbits: the vertices (first line),
+# the face center points (second line) (both are fixed in space), and some other
+# random point I just made up. (note that lines starting with '#' are ignored,
+# and that the first line is ignored in any case)
+# Note further: Barycentric coordinates must add up to 1, and be >= 0 to lie
+# inside the fundamental triangle!
+#   TAU0        TAU1        TAUC
+1.000000    0.000000    0.000000
+0.000000    0.000000    1.000000
+0.234234    0.429123    0.336643
