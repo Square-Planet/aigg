@@ -262,15 +262,12 @@ int main_direct_invoke(int argc, char *argv[])
    return 0;
 }
 
-std::string MakeAiggVersionString()
-{
-//    return fmt::format("kgaigg v@Pr0gVeR (compiled: " __DATE__ ", fprec: {})", g_ScalarFloatSizeBits);
+std::string MakeAiggVersionString() {
    return fmt::format("aigg v@Pr0gVeR (compiled: " __DATE__ ", fprec: {})", g_ScalarFloatSizeBits);
 }
 
 
-std::string MakeCurrentTimeString()
-{
+std::string MakeCurrentTimeString() {
    std::time_t t = time(0);
    struct std::tm *now = std::gmtime(&t);
    if (now) {

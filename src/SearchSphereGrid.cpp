@@ -2511,7 +2511,7 @@ void ExportGrid(FPointArray const &SeedPoints_, FDenseVector const &LastWeights_
          std::string
             AdditionalText;
          if (ExportOptions.PointsToExport == FExportOptions::EXPORT_SeedsAndWeightsOnly)
-            AdditionalText = fmt::format(" {:4d}   ({} {})", OrbitTypes[iSeed]->Length, PointGroup.Name(NAMETYPE_Symmetry), OrbitTypes[iSeed]->pDesc);
+            AdditionalText = fmt::format(" {:4d}   ({}-{})", OrbitTypes[iSeed]->Length, PointGroup.Name(NAMETYPE_Symmetry), OrbitTypes[iSeed]->pDesc);
 //          out << fmt::format("{:24.16e} {:24.16e} {:24.16e} {:24.16e}{}\n",
 //                double(Rg_sq[0]), double(Rg_sq[1]), double(Rg_sq[2]), double(wt), AdditionalText);
          int prec = ExportOptions.Precision;
