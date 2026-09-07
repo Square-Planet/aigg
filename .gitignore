@@ -1,0 +1,10 @@
+# Ignore binary builds
+aigg_64
+aigg_64_d
+aigg_128
+aigg_256
+aigg_512
+
+# Ignore build artifacts and directories
+build/
+.sconsign.dblite
