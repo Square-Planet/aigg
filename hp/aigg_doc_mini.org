@@ -1,6 +1,8 @@
 ---
 title: "`aigg` — a generator for spherical integration rules"
 ---
+`▒! lang: bash`
+
 #+ title: "`aigg` — a program for generating spherical integration rules"
 #+ title: "the `aigg` program — a generator for spherical integration rules"
 #+ ---
@@ -89,12 +91,434 @@ title: "`aigg` — a generator for spherical integration rules"
 #+        and/or other kinds of documentation, and found them to work quite well for long texts.
 
 
+#+ <img src="aigg-v1a.svg" style="margin-left:20%" width="60%">
+
+#+ <img style="position:fixed; top: 12px; right:12px" src="square-planet-v1b.svg" width="120px">
+
+
+<!-- # The aigg program: Generating new spherical integration rules -->
+* aigg: spherical integration rule generator
+
+#+ * {The aigg program}: Generating new spherical integration rules
+#+   * What does the aigg program do?
+#+  * {Introductory comments} on the {aigg} program
+#+     - In one spatial dimension, there are many well-known integration rules (aka “quadrature rules”), which afford efficient ways of numerically approximating definite integrals via
+#+       \[  \int_a^b f(x)\,\d x = \sum_{g=1}^N f(r_g) w_g. \]
+#+       The “integration rule” in this case is the set of _#grid points#_ $r_g\in[a,b]$ (aka “ordinates”) are to be placed, combined with their associated _#weight#_ $w_g$ (#(in a more abstract sense, the term “integration rule” is sometimes also used to denote the /#algorithm#/ to determine the $\{(r_g,w_g);\,g=1,\ldots, N\}$, rather than the resulting set of points and weights itself)#).
+#+
+#+       In particular,
+#+
+#+     targeting different classes of functions:
+#+       For example:
+#+       + /#Gaussian quadrature:#/
+#+       Quadrature
+#+ #+     classes of integration rules are known for integrating certain classes of
+  - First: >#AiggProgramSection#<{`aigg`} stands for Angular Integration Grid Generator. It is a program for _#constructing#_ and _#optimizing#_ spherical rules, which are then typically gathered and tabulated for use in other programs
+  - ***Downloading, installing, or running `aigg` is not required to use the generated spherical integration rules***.
+    + Just /#using#/ integration rules is the /#typical#/ use case. This is much simpler than generating them, and if that is what you are after, see the section on using the ^#TabulatedAngularIntegrationGridLibrariesSection#^{Tabulated Angular Integration Grid Libraries}.
+    + For almost every practical usage case of spherical grids in chemistry, one would never need to bother with `aigg` itself, and simply use the pre-packed grids!
+  - As mentioned, `aigg` is used to /#compute and optimize#/ the spherical integration rules ***themselves***.
+    It is what was used to /#construct#/ the rules which the `aig` libraries (=tabulated grid libraries) contain.
+    The main source of the `aigg` program, and most of this documentation (this site), are not required to use the resulting spherical integration rules (#(...but we do appreciate citations to our ^#AiggArticle1#^{scientific article})#)
+  - We publish `aigg` and this documentation mostly for reasons of transparency (there really is no reason not to -- and the grids are important enough that we think the exact process in which they are generated should be made public), and as a community resource to facilitate specialty developments by other researchers.
+
+#+ * Running aigg / using aigg to generate new angular integration grids
+  * when should I install, run, or modify aigg?
+    First, when do you _#not#_ need the actual `aigg` program?
+    - If you just wish to try out or incorporate our spherical integration rules in your own program,
+      we recommend using ^#TabulatedAngularIntegrationGridLibrariesSection#^{our pre-packed spherical rule sets}.
+    - In this case, there is /#no need#/ to either install or run `aigg`.
+      See section on /#^#TabulatedAngularIntegrationGridLibrariesSection#^{“tabulated angular integration grid libraries”}#/ for this case.
+
+    However, if you wish to develop /#new#/ spherical integration rules, or wish to see or reproduce how exactly the tabulated rules were made, this section may be of relevance for you. In particular, here are some examples for when you may wish to run or modify `aigg`:
+
+    Some examples of projects one might be interested in, using `aigg` as is:
+    - Searching better grids, based on novel initial guesses, optimization strategies, or convergence control algorithms
+    - Generating rules of higher (or just different) orders than presently tabulated
+    - Generating a complete set of rules for specific point groups (#(e.g., only grids of octahedral symmetry which have exact full D2h symmetry)#)
+    - Generating rules with an output numerical accuracy higher provided in the reference libraries
+      (#(we typically provide prepacked libraries with data tabulated to full /#“double precision”#/ (64bit floats) and 128bit floating point precision. If for a special application you need more, you can reoptimize the reference rules to higher precision with `aigg`)#)
+
+    Some examples of projects one might be interested in, which would require modifications/extensions of the `aigg` program, or for which the present `aigg` may be useful as a starting point:
+#+     , or polyhedral ones including inversion symmetry
+    - Modifying `aigg` to include additional point groups (#(e.g., axial ones)#)
+
+#+       (#(aigg presently uses 128bit floating point arithmetic internally by default, and the tabulated-grid-libraries generate grids with guaranteed full 64bit float accuracy. But some specialty applications could need even higher precision in some contexts)#)
+    - Making spherical integration rules for sets of target functions different than the full set of spherical harmonics/Cartesian monomials up to a certain order in $L$
+      (#(e.g., if one were to know that for an application in a given program, all functions integrated with the numerical integration rules always had certain additional symmetries or other properties not necessarily exposed by the sets of spherical harmonics. In that case it may be possible to generate more efficient specialty integration rules for these classes of functions than possible for the spherical harmonics; i.e., which require less points to integrate these functions exactly than would be needed to integrate the full sets of spherical harmonics exactly)#)
+    - Making integration rules for manifolds other than straight unit spheres, or including weight functions $w(\vec r)$ which are not uniformly equal to 1
+      (#(e.g., for half-spheres, or elongated spheres or cylinders etc.)#)
+    - Making sets of spherical integration rules for space dimensions other than three (#(e.g., integration rules for the four-dimensional sphere)#)
+#+     - Making non-separable optimized integration rules for 3D unit balls (i.e., the set of points $\vec r\in\spa{R}^3$ with $\norm{\vec r}\leq 1$) or sphere shells of finite thickness $h>0$ (i.e., the set of points $\vec r\in\spa{R}^3$ with $\norm{\vec r}\in\bigl[1-\frac{h}{2},1+\frac{h}{2}\bigr]$)
+    - Making non-separable optimized integration rules for 3D unit balls:
+      \[ B_3=\bigl\{\vec r\in\spa{R}^3\;\text{with}\;\norm{\vec r}\leq 1\bigr\}\]
+      or sphere shells of finite thickness $h>0$:
+      \[ S_{2,h}:=\Bigl\{\vec r\in\spa{R}^3\;\text{with}\; \norm{\vec r}\in\bigl[1-\efrac{h}{2},1+\efrac{h}{2}\bigr]\Bigr\}\]
+
+    ...or just general research of integration rules, or just plain general interest in the topic.
+
+#+     aigg is what you use if you:
+#+     0 if you wish to develop /#new#/ spherical integration rules
+#+     However, if you wish to develop /#new#/ spherical integration rules
+
+#+       If you are looking for our pre-packed spherical rule sets, you do not need to either install or run aigg. See chapter on “tabulated grid libraries” in this case.
+  * compiling aigg
+
+    - install the development packages of `eigen` and `boost`, and install `scons` as build system.
+    - afterwards, try this:
+      ``` sh
+      make -j $(nproc) &&&& ./aigg_128 -c inputs/1-incremental-search-up.ini
+      ```
+
+    * Library dependencies
+      - `Eigen`
+      - `boost` (in particular, `boost/multi_precision`)
+      - Only tested with `g++`. Uses gcc's `__float128` option, if available.
+
+        (#(since the rule optimizer is targeted at a small number of developers, the explicit compiler, library, and platform dependencies seem acceptable. Note also that the program will run fine in both WSL (the windows subsystem for linux) and an actual linux VM)#)
+      - `scons` as build system
+      - Only tested on linux (note: works fine on virtual Fedora running on WSL2)
+#+    * {Setup of build environment} in SConstruct
+    * Parallelization
+      - ...is technically enabled using OpenMP; however, much time is spent on linear algebra
+        routines, and apart from a small number of exceptions, these are not parallelized in Eigen.
+        And it does need eigen, because it requires the ability to use high precision floating
+        point arithmetic.
+      - Recommended procedure is to simply start many instances of `aigg` at once (for different rules), using `nice` to tell them to make way for other programs. We have found this to work okay even when starting thousands of grid optimization jobs at the        same time, on a single notebook computer.
+  * command line invocation
+#+    - either commands directly on the line
+#+    - of stored in input files
+    - Commented examples are given in `inputs/` directory
+#+    - Here only main options. Full set of command line options described in `SearchOptions.cpp`.
+#+      Examples for main usage cases also given below.
+    - Call `aigg_64` without arguments to see the list of command line arguments.
+    - Some additional specialist options are not officially documented. For the full set of command line options, see comments in `SearchOptions.cpp`.
+
+  * examples
+
+    * Incremental optimization schedules
+      For the larger grids, there are two issues with running the described optimization procedure to obtain a target grid of maximum order $L$ directly:
+      - First, we generally do not know what is the largest order $L$ which an optimized spherical integration rule could possibly realize for a given set of orbits. Consequently, it is not clear which $L$ to choose for optimizing
+      - Second, obtaining an reasonable initial guess of the seed points, which makes it likely that the iterative optimization converges, can be rather difficult if the points have to be guessed ex nihilo.
+  
+    #+       Both problems can be addressed by running an _#incremental optimization schedule#_, instead of attempting to optimize the target rule for (unknown) target order $L$ directly.
+    #+       As an example, consider the following process:
+    #+       - Assume we have given an initial set of seed points $\{\vec r_q\}$, which are not necessarily obtained as result of any specific optimization.
+    #+       - We may choose a (small) initial $L$, for which likely an exact integration rule can be obtained (in principle, even $L=0$).
+    #+       - We can then repeat the following process:
+    #+         - /#Step 1:#/ Optimize the seeds and weights for this target $L$.
+    #+         - /#Step 2:#/ If at convergence $r$ is very close to numerical zero ($r<\text{thr-res}$, e.g., $r<10^{-25}$), then the integration rule is considered exact for order $L$.
+    #+           - If the optimized rule is exact for order $L$, increase $L$ and go to /#Step 1#/
+    #+           - If the optimized rule is not exact for order $L$, decrease $L$ to last known working $L$, re-optimize the points and weights, and exit.
+    #+       That is, the parameters of the rule are optimized step by step, for increasingly large target orders $L$.
+    #+       And this is done until an $L$ is found for which `aigg` is no longer able to determine a set of $\{\vec r_q\}$ which yield an exact numerical integration of the target space.
+    #+       The advantages of this process are that (a) the target $L$ does not need to be known beforehand; rather, it is a result of the optimization process, and (b) at each $L$ step, the change in the distribution of points $\{\vec r_q\}$ is smaller than it would be if one were to optimize the rule for the target $L$ directly (without the interemediate steps); this simplfies convergence of the process.
+      Both problems can be addressed by running an >#IncrementalScheduleSection#<{_#incremental optimization schedule#_}, instead of attempting to optimize the target rule for the (generally unknown) target order $L$ directly.
+      In this case, one performs a series of optimizations with gradually increasing (or decreasing) $L$, each time using the result of the last optimization as starting guess.
+    #+       So the parameters of the rule are optimized step by step, for increasingly large target orders $L$.
+      - For an incremental upward search, this is done until an $L$ is found for which `aigg` is no longer able to determine a set of $\{(\vec r_q,w_q)\}$ which yield an exact numerical integration of the target space.
+      - For an incremental downward search, this is done until the first $L$ is found which integrates exactly.
+  
+    #+       The advantages of this process are that (a) the target $L$ does not need to be known beforehand; rather, it is a result of the optimization process, and (b) at each $L$ step, the change in the distribution of points $\{\vec r_q\}$ is smaller than it would be if one were to optimize the rule for the target $L$ directly (without the interemediate steps); this simplfies convergence of the process.
+  
+      `aigg` supports both /#upward#/ and /#downward#/ incremental search schedules, and allows starting the schedule at arbitrary points and using arbitrary step widths, as well as performing a fixed set of additional operations once the breaking condition is met.
+  
+      Example input `inputs/1-incremental-search-up.ini`:
+      #+BEGIN_PYTHON
+      # Make an initial guess using a hexagonal grid with s=5 and t=1 parameters as
+      # described by Ahrens & Beylkin. Then do a series of grid optimizations, each
+      # time using the result of the last calculation as initial guess:
+      #
+      # - First optimize the points & weights of this grid for to minimize the
+      #   residual for the monomials of degree l <= 4 ('[4,..]').
+      # - Then keep on increasing l by +1 (step:+1) until we find the first l for
+      #   which the optimized grid DOES NOT integrate the monomials of degree l
+      #   exactly (in this case (the hex{5;1}-grid) this will be lfinal=30).
+      # - Afterwards, optimize the grid for lfinal-1 ('..,-1]') (which is 29 in this
+      #   case), using the converged, but non-exact solution for lfinal as starting
+      #   guess. The resulting grid will be exact for order 29 again, but will in this
+      #   case possibly show a somewhat better weight distribution
+      { point-group: icosahedral;
+        degree: [4,step:+1,-1];
+        max-step: 1e4*residual;
+        initial-points: hex-grid{5;1;01c}
+      }
+      #+END_PYTHON
+      Example input `inputs/2-incremental-search-down.ini`:
+      #+BEGIN_PYTHON
+      # as 1-incremenal-search-up, but now search incrementally in DOWNWARD direction.
+      # The first grid optimized will be of degree l=35. Then we decrease l by 1
+      # (step:-1) until we find the first grid which integrates exactly.
+      #
+      # additionally, this config shows more fine-tuning options for the step size: by
+      # default use a maximum step size of 10^4 times the current residual, but never
+      # restrict the step size to maximum steps smaller than min:1e-9, and never allow
+      # steps larger than 7e-4.
+      #
+      # In this case, this finds the same grid as the final result of the
+      # 1-incremental-search-up.ini, but this may different in other cases.
+      { point-group: icosahedral;
+        degree: [35,step:-1];
+        max-step: {1e4*residual; max:7e-4; min:1e-9};
+        initial-points: hex-grid{5;1;01c}
+      }
+      #+END_PYTHON
+      *#Comments:#*
+      - Generally, incremental upward searches with steps of either $+1$ or $+2$ appear to be most useful.
+      - For steps of two, it may be advisable to perform separate optimization runs starting at an even and at an odd initial $L$; e.g.,
+        ```
+        degree: [4,step:+2,-1,-2]
+        ```
+        and
+        ```
+        degree: [5,step:+2,-1,-2]
+        ```
+      - In an upward search, such as here, the entries `[…,-1,-2]` mean that after the $L_\mathrm{mx}$ is found which no longer integrates exactly, first attempt to optimize a rule with $L=(L_\mathrm{mx}-1)$. If this rule optimizes exactly $\Rightarrow$ exit. Otherwise, proceed with $L=(L_\mathrm{mx}-2)$. Each time the result of the last optimization is used as starting guess.
+        Further schedule entries may be given for larger incremental step widths.
+    * {Refining existing} integration {rules}
+      `aigg` may be used to either >#RefineExistingRuleSection#<{verify or refine existing integration rules} supplied as input data in rather general formats.
+  
+      - If used in this way, `aigg` will read the initial seed points from an externally given text file, and use these as starting guess for a grid optimization.
+        The input file is specified in the rather free form format described below (#(the weights, if given, are ignored)#),
+  
+      - The seed points may be given in terms of either Cartesian coordinates, or in terms of ^#https://en.wikipedia.org/wiki/Barycentric_coordinate_system#Barycentric_coordinates_on_triangles#^{barycentric coordinates} with respect to the ^#FundamentalRegionsSection#^{fundamental region}.
+  
+      Example input `inputs/3-refine-initial-grid.ini`:
+      #+BEGIN_PYTHON
+      # This time do the following:
+      # - Read the initial cartesian points from a data file (e.g., a
+      #   set of points made by previous runs of the grid optimization).
+      #   The file here is called points 'inputs/312-guess.txt' (where
+      #   'inputs' is the directory relative to the current directory).
+      #
+      #   Regarding the file format, the following conventions hold:
+      #     * The first line of the file is ignored.
+      #     * Of every other line, the first three elements separated by spaces
+      #       are read as cartesian coordinates. The rest of the line is ignored
+      #       (including possible weights, if given)
+      #     * File reading ends once we encounter a line which cannot be read
+      #       as three floating point numbers.
+      #     * Lines startig with '#' or '//' are ignored.
+      # - Then optimize a grid of degree 30 with these starting points, and
+      #   use its result as initial guess for an optimization of degree 29.
+      { point-group: icosahedral;
+        degree: [30,29];
+        max-step: {1e4*residual; max:7e-4; min:1e-9};
+        initial-points: read-cartesian{inputs/points-312-guess.txt}
+      }
+      #+END_PYTHON
+      Example input `inputs/4-refine-barycentric-coordinate-guess.ini`:
+      #+BEGIN_PYTHON
+      # as 3-refine-initial grid, but this time read the input positions as
+      # barycentric coordinates of the fundamental region (for icosahedral,
+      # tetrahedral, and octahedral grids this is a triangle in all cases). The inputs
+      # is given in triples of tau0, tau1, tauC. What these mean depends on the point
+      # group (see ConvertBarycentricToCartesian function).
+      #
+      # For icosahedral grids, both tau0 and tau1 refer to vertices of the
+      # icosahedron, and tauC refers to the mid point ('c'entral point) of an
+      # icosahedron face.
+      #
+      # The file format works as in the cartesian case: The first line is ignored, and
+      # only the first three scalars are read as actual input. Reading stops once we
+      # reach a line which does not start with three scalars.
+      { point-group: icosahedral;
+        degree: [step:+1,-1];
+        max-step: 1e-3;
+        initial-points: read-barycentric{inputs/barycentric-guess.txt}
+      }
+      #+END_PYTHON
+  
+    * {Exporting and visualizing} integration {rules}
+      If the optimized rules are meant for further processing (or packaging),
+      it is advisable to ask `aigg` to export the core information of the optimized grid to a separate data file, rather than attempting to parse it from the `aigg` standard output.
+      Doing so also allows automatically retaining only the /#“best”#/ version of a rule encountered during a optimization schedule (see comments below).
+      This is done using the `export` option as shown here:
+  
+      Example input `inputs/6-export-and-visualization.ini`:
+      #+BEGIN_PYTHON
+      # This file contains a command to export the final integration points to a data
+      # file. With 'points: all', all symmetry-equivalent points will be explicitly
+      # generated and exported (e.g., here, a general seed point leads to 60 exported
+      # points, a seed point on a vertex leads to 12 exported points, etc).
+      # Alternatively, one can give 'points:seeds', in which case only the unique
+      # points are exported.
+      #
+      # If the required python packages are installed and a suitable graphics card
+      # driver is present, the so-computed grid points can be visualized with
+      #
+      #     visualize_rule.sh ico-3-2.dat
+      #
+      # (use filename you used for export, here 'ico-3-2.dat')
+      { point-group: icosahedral;
+        degree: [15,step:+1,-1];
+        max-step: 1e4*residual;
+        initial-points: hex-grid{3;2;01c};
+        export: {file: ico-3-2.dat; format: text; points: all}
+      }
+      #+END_PYTHON
+      In this case, running `aigg --config inputs/6-export-and-visualization.ini` generates a file `ico-3-2.dat` with the following content:
+      #+BEGIN_PYTHON
+      # icosahedral integration rule: npts = 192, lmax = 23, wtsp = 1.298, res = 9.49e-33
+      # generated by aigg v20200620 (compiled: Jun 20 2020)
+        8.506508083520399321815405e-01   0.000000000000000000000000e+00   5.257311121191336060256691e-01   4.164880157580242505412690e-03   12   (icosahedral-vertex)
+        9.389133803811559787521034e-01   1.134729659940559359608633e-01   3.249085257880170314894821e-01   5.077679306001083356874116e-03   60   (icosahedral-general)
+        9.696669087810822363832319e-01   2.278851408290567536955890e-01   8.839936993135930626670278e-02   5.349546802216596883184665e-03   60   (icosahedral-general)
+        9.903922163546059654139378e-01   6.106051248825701525715709e-02  -1.240760718224218169143828e-01   5.406464526932937925525348e-03   60   (icosahedral-general)
+      #+END_PYTHON
+      This indicates an integration rule with:
+      - `npts=192` $\{(\vec r_g,w_g)\}$ points total, generated from four seed points: one on a ^#SpecialOrbitsSection#^{special icosahedral vertex orbit} with 12 points, and three on ^#SpecialOrbitsSection#^{general icosahedral orbits} with 60 points each.
+      - Order `lmax=23`; that is, a rule which integrates all spherical harmonics $Y_{lm}(\theta,\phi)$ with $l\leq 23$ numerically exactly (or, ^#MonomialsVsSphericalHarmonicsSection#^{equivalently}: all Cartesian monomials $m_{ijk}(x,y,z)$ with $i+j+k\leq 23$)
+      - A very small weight spread
+        \[ \text{wtsp} := \frac{\max(\{w_g\})}{\min(\{w_g\})}\]
+        of only `wtsp=1.298`. (#(Assuming that all weights $w_g$ are positive, smaller weight spreads indicate a more even distribution of the grid points $\vec r_g$ across the sphere surface. So, if given a choice, rules with smaller weight spreads are generally preferable)#)
+      - A residual `res` of $e\approx 10^{-32}$.
+        For export purposes, the value exported as `res` is not the final optmization residual, but rather
+        the maximum absolute error $e$ obtained as difference of the exact analytical result and the numerical integration result using the given rule, over the full set of Cartesian monomials $m_{ijk}(x,y,z)$ with $i+j+k\leq l$.
+        (#(/#all#/ of them are explicitly computed before export and $\max(\ldots)$'ed over)#)
+      The visualization of this file generated py `visualize-rule.sh ico-3-2.dat` produces the image
+      <div><img style="padding: 4px; background-color:#fff; border-color:#000; border: none; width:50%; margin-left:25%; height:auto;" src="img/ico-3-2.png" alt="ico-3-2 integration rule visualization"></div>
+      (#(the centers of the colored disks indicate the integration points $\vec r_g$ of the grid; and both the colors and sizes of the disks on the unit sphere encode the weights $w_g$ of the corresponding integration points. Concretely, the visual area of the disks is approximately equal to the area given by the integration weight $w_g$ represented by the point $r_g$ of its center. This particular rule is very good: The disks are very evenly distributed over the sphere, and have very similar represented areas. See ^#AiggArticle1#^{our article} for a full description of how to read these visualizations)#)
+  
+  
+      ⟨newline⟩
+      *#Comments:#*
+      - By default, `aigg` will not export grids which
+        - ...either do not integrate the current target $L$ exactly (#(this decision is based the option set for `thr-res`)#),
+        - ...or do integrate the given target $L$ exactly, but a previous grid in encountered during the current incremental optimization schedule integrated a larger $L$ exactly,
+        - ...or do integrate the given target $L$ exactly, but have a “worse” weight spread than another grid previously encountered during the current incremental optimization schedule which /#also#/ integrated this $L$ exactly.
+  
+          The current weight spread is considered “worse” if either it is negative, while the previous one was not; or if both weight spreads are positive, if the current weight spread is larger than the previous one.
+        With these precautions, the last grid exported in the course of an incremental optimization schedule is typically the most reasonable one encountered in the course of the entire optimization.
+    * Types of {initial guesses}
+      - Set points on fundamental domain, and map them through the group across the sphere>#InitialGuessesSection#<{:}
+      <div><a href="img/initial-guess-concept-1-2048.png"><img style="padding: 4px; background-color:#fff; border-color:#000; border: none; width:90%; margin-left:5%; height:auto;" src="img/initial-guess-concept-1.png" alt="illustration of spreading grid points across the entire sphere surface by defining them on the fundamental domain of a polyhedron and then replicating them using the point group symmetry operations"></a></div>
+  
+  
+      - Hex grid
+      - Subdiv surface
+      - *#Explicit seed point lists#*:
+  #+     (in terms of barycentric or Cartesian coordinates):
+        Independently of the systematic initial guesses, `aigg` may also be given an explicit list of input points to start the optimization from.
+  
+        The set of input points may be given in either Cartesian coordinates or barycentric coordinates of the fundamental region, and is specified as described in the ^#RefineExistingRuleSection#^{section on refining initial grids}.
+        In the current case, one would combine this input with a ^#IncrementalScheduleSection#^{standard incremental search schedule}, rather than a schedule for a single targeted $L$.
+
+
+
+
+
+#+ * Obtaining aigg-generated tabulated Angular Integration Grid (AIG) libraries, and incorporating them in your own programs
+#+ * The Angular Integration Grid (AIG) libraries: Spherical rules for your own programs
+#+   * What are the Tabulated Angular Integration Grid (AIG) libraries?
+* {aig libraries}: spherical rules for your own programs
+  * {what are} the tabulated angular integration grid {(AIG) libraries}?
+    - To simplify incorporating `aigg`-generated integration rules in other programs,
+      we provide at [http://knizia.me/aig](http://knizia.me/aig) a separate set of program components -- >#TabulatedAngularIntegrationGridLibrariesSection#<{the aig libraries} -- which allow for easily using well-defined collections of spherical integration rules in various programming languages.
+      These are separate objects from the generator `aigg` itself (see ^#AiggProgramSection#^{the aigg program section}).
+    - The `aig` libraries are very simple program components which, for all practical purposes, can be viewed as systematic collections of integration rule data.
+      Effectively, they consist of a curated set of spherical integration rules, which we optimized, tested, and selected, for use in other programs.
+    - The `aig` libraries therefore only provide the following functionality:
+      + *#Enumerating#* the stored angular integration grids
+      + *#Querying#* their core properties. E.g., the number of points $N$ in the grid, the order $L$ (#(=highest $L$ up to which they integrate exactly all spherical harmonics $Y_{lm}(\theta,\phi)$ with $l\in\{0,1,\ldots,L\}$ and $m\in\{-l,\ldots,+l\}$)#), symmetry type, weight spread, literature citation,
+      + *#Instanciating#* the contained grids. That means obtaining the explicit list of grid points $\{\vec r_g\}$, with $g\in\{0,1,\ldots (N-1)\}$, and associated weights $\{w_g\}$, which make up the angular integration grid (=spherical integration rule).
+      + *#Identifying#* the represented version of the angular integration grid collection (#(to distinguish it from future or past releases of integration rule collections)#)
+    (#Background note:#)
+    - (#Internally, the `aig` libraries do not store the points of the integration rules as raw data.#)
+    - (#Rather, for each integration rule, they only contain an “irreducible” subset of information:
+#+       regarding the integration rules as raw data:
+      namely the set of /#“seed points”#/ of the integration rules (#(see article. These are symmetry unique points of the rule; or, in group theory language: for each point $\vec r_i\in\spa{R}^3$ of the actual rule, there is only a single canonical representative $\vec r_q\in\spa{R}^3$ of the group orbit
+      \[ \groupname{G}(\vec r_q) = \bigl\{\groupelement{g}(\vec r_q);\,\groupelement{g}\in\groupname{G}\bigr\}\]
+      in which $\vec r_i$ is contained.)#), and their associated weights and orbit types.#)
+    - (#This essential data is then combined with simple code for generating group orbits (for each orbit type and each supported symmetry group) to obtain the output point lists used in the host program, which make up the actual integration rules.#)
+    - (#Compared with storing actual point lists, this approach greatly reduces the amount of stored information, and therefore greatly reduces the compiled code size and amount of required memory.#)
+#+     - Their sole purpose is to enumerate the sets of contained integration grids (which
+#+   * Legal matters
+  * {incorporating `aig` libraries} into host programs
+    - The `aig` libraries are redistributable libraries which provide the main access to the tabulated integration rule data generated by `aigg`.
+    - The `aig` libraries are designed for minimal amounts of hassle when incorporating them into host programs:
+      - We provide variants for multiple programming languages popular in scientific computing (C++98, Fortran90, Python2/3), and variants for other languages can be easily ported from those
+      - For each language, they consist of only one to five source files
+
+        (#(While we call them /#“libraries”#/, in practice one would typically just /#copy#/ the corresponding `aig` library source files into the host programs source code tree, rather than building them as separate static or dynamic link libraries. So there is no/minimal need to adjust build scripts, and no need to add external dependencies)#)
+      - For reasons of compatibility, the `aig` libraries use only very basic features of the corresponding programming language standard, and do not add any dependencies on third party libraries or special compilers.
+#+     - While we call them “libraries”, in practice the one would typically just /#copy#/ the corresponding `aig` library source files into the host programs source code tree, rather than using them as “libraries” in the technical sense of the term (static or dynamic link libraries).
+    - The `aig` libraries are distributed under a /#“do as you like, as long as you don't blame us if anything goes wrong”#/-license (see enclosed license files for details):
+
+      - Essentially, you may use the code of the `aig` libraries in any way you see fit, without royalties: in commercial, semi-commercial, or non-commercial programs; in programs with closed, shared, or open source; with or without attribution; in single programs or redistributed as part of other programs or libraries
+      - This holds as long as you understand that we (the authors) provide /#no guarantees of fitness of the `aig` libraries for any purpose#/ (in particular, we do not /#guarantee#/ that any of the code in the libraries actually does what it says it does), and therefore also understand that we do not take /#any#/ responsibiliy for /#any#/ potential damages or liabilities resulting from the use of the code, and as long as notes describing this legal prerequisite for using our code are retained in redistributed versions.
+
+    - While not strictly required, we would appreciate it if...
+      - ...the use of these libraries were pointed out in the host program's manual or documentation at an appropriate place (including a link to this website and possibly a link/citation to its ^#AiggArticle1#^{scientific article}),
+      - ...if scientific projects using the libraries would include an appropriate citation to its ^#AiggArticle1#^{scientific article}
+      - ...and if notes describing the origin of the code were retained in the source files if modified (including pointers to this website), particularly if the modified versions are redistributed as parts of other projects.
+      Doing so would allow us to take (scientific) credit for these developments, facilitate our continued development of the project, and also allow potentially later users of the software to obtain original or updated files in the future.
+#+      (apart from the “provided as is with not guarantees of fitness for any purpose” clause)
+#+     for generated grid instanciation libraries (different from aigg program library itself)
+
+#+       Note the distinction between `aigg` and the`aig` libraries:
+#+       ...didn't you say `aigg` is licensed under GPLv2?
+    NOTE: license(`aigg`) != license(`aig` libraries)
+    - Note that unlike the tabulated AIG libraries we provide here, the `aigg` program /#itself#/, which was used to /#generate#/ the data tabulated in those libraries, is licensed under a GPLv2 license.
+    - However, as mentioned, `aigg` itself **is not required** to use the tabulated grid libraries in other programs.
+
+    - Typically, other programs would /#only#/ incorporate the tabulated `aig` libraries, not `aigg` itself or parts thereof.
+      - For this reason, the `aigg` license does not apply to programs using only the `aig` libraries.
+        In particular, using the `aig` libraries does not place the host program under GPL, nor does it imply any other strict legal consequences for the host program (except the transfer of potential legal liabilities or damages resulting from use of the `aig` libraries from us to the legal entity associated with the host program)
+  * {obtaining} the tabulated {grid libraries}
+
+    The latest version of our grid libraries are (currently) hosted at [http://knizia.me/aig](http://knizia.me/aig).
+
+    By default, libraries are compiled for Fortran (F90), C++, and python. All are available in `fp64` and `fp128` precision. For most production applications, the `fp64` (i.e., regular /#double precision”#/) libraries are the appropriate choice.
+
+    TODO: make a github repo for it.    
+
+#+  * Interface definitions
+#+    Each version of the `aig` libraries essentially exposes the following two functionalities:
+#+    - Enumeration of available grids, including properties
+#+    - Generation of arrays which define the $\{(\vec r_g, w_g);\,g\in\{0,1,\ldots,(N-1)\}\}$ data of the grid.
+#+
+#+    * Conventions on raw grids
+#+      The raw grids exported by the `aig` libraries follow the following conventions:
+#+      - They always represent the /#unit sphere#/ $\spa{S}_2\subset \spa{R}^3$; that is, the (two-dimensional) sphere in 3D space $\spa{R^3}$ around the coordinate origin (zero vector), with unit radius.
+#+      - In particular, all returned grid points $\vec r_g$ will fulfill
+#+        \[ \norm{\vec r_g} = \sqrt{x_g^2 + y_g^2 + z_g^2} = 1. \]
+#+        up to numerical precision.
+#+      - *#The returned weights are normalized to unity, not to $4\pi$!#*
+#+
+#+        Concretely, the returned weights will fulfill the condition
+#+        \[ \sum_{g=0}^{N-1} w_g = 1\]
+#+        up to numerical precision, rather than $\sum_g w_g=4\pi$, as one could also define (#(and, in fact, ^#SphericalIntegrationRuleSection#^{as we did earlier})#).
+#+      The second condition means that the /#actual#/ approximation represented by the rule is
+#+      \[ \int_{\spa{S}_2} f(\vec r)\,\d\Omega \approx 4\pi \sum_g f(\vec r_g) w_g. \]
+#+      So the $4\pi$ factor of the solid angle integral must be supplied separately, and will typically be included as part of the /#volume element#/ $4\pi\,r^2\,\d r$ when instanciating a series of spherical rules around a center $\vec c$ to cover $\spa{R}^3$ space (see next section and the ^#MolecularIntegrationGridSection#^{section on molecular integration grids}).
+#+    * {Spherical grids} for spheres {of radius $r$ around center} $\vec c$
+#+      - The returned raw grids can be easily translated into spherical rules which integrate a sphere of any radius $R>0$ around any center $\vec C\in\spa{R}^3$.
+#+      - Concretely, let $(\vec r_g,w_g)$ define a 1-normalized unit sphere grid as (as generated by the `aig` libraries).
+#+        Define its transformation:
+#+        \[[ \vec r_g' &=& \vec C + R\,\vec r_g
+#+        \\  w_g' &=& 4\pi R^2 w_g.
+#+        \]]
+#+      - Then the following integral approximation holds:
+#+        \[ \int_{S(\vec C,R)} f(\vec r)\,\d\Omega \approx \sum_g f(\vec r_g')\,w_g' \]
+#+        where $S(\vec C,R)$ denotes the sphere in $\spa{R}^3$ space of radius $R>0$ around point $\vec C\in\spa{R}^3$:
+#+        \[ S(\vec C, R) := \bigl\{ \vec r\in\spa{R}^3:\, \norm{\vec r - \vec C} = R \bigr\}.\]
+#+        The Python version of the libraries includes a function to generate grids in this transformed manner directly at $(\vec C, R)$.
+#+      - Note that in many practical applications, it is advisable to additionally orient the grids into a object-local frame, by applying a suitable $(3,3)$-shape rotation matrix to the $\vec r_g$ before transforming them to $(\vec C, R)$.
+#+        The reason for this is that the grids are not perfectly rotationally invariant (that is impossible for finite grids!), and aligning the grids into a fixed object-local frame can work around certain calculation artifacts
+#+        (#(e.g., in molecular integration grids in DFT, this will make DFT energy of the molecule independent of the molecule's orientation in $\spa{R}^3$ space)#).
+#+  * {Example} of using them {in C++}
+#+  * {Example} of using them {in Fortran}
+#+  * {Example} of using them {in Python}
+
+#+ * Introduction to aigg and the `aig` libraries
+
 #+ * Introduction/Overview
 #+ * Background on spherical integration rules
 #+ * Mathematical Background on Integration Rules
 #+ * Mathematical Background of Integration Rules
-* {Mathematical Background} for Integration Rules
-  * What is an &ldquo;integration rule&rdquo;?
+* {mathematical background} for integration rules
+  * what is an &ldquo;integration rule&rdquo;?
     >#GeneralInterationRuleSection#<{This section} outlines the general concept of a /#numerical integration rule#/.
 #+     It establishes these as a means of numerically computing numerical approximations of integrals over functions
     It describes what an integration rule /#is#/, when and why one might need one, and some criteria which may be used to construct and derive them.
@@ -331,7 +755,7 @@ title: "`aigg` — a generator for spherical integration rules"
       - Unlike in this text, Gaussian integration rules are typically discussed in relation to series of /#orthogonal polynomials#/, rather than in terms of the monomials $m_k(x)=x^k$ themselves.
         (#[We focus on monomials because we consider the monomial treatment as more transparent: whether or not the target functions are orthonormal is really of no consequence to the /#definition#/ of the criteria characterizing the Gaussian integration rules, although for various reasons orthogonal basis sets of the target function space may still be desirable in practice. In `aigg`, we typically employ target spaces spanned by sets of non-orthogonal functions, which are then treated in a bi-orthogonal formulation]#)
         However, in any case, the corresponding orthonormal polynomials $\{p_k(x);\,k\in\{0,1,\ldots,L\}\}$ can be straight-forwardly determined by incrementally orthogonalizing the monomials in $\{m_k(x);\,k\in\{0,1,\ldots,L\}\}$ against each other, starting at $m_0=1$:
-        \[[ \tilde p_k(x) &:=& m_k(x) - \sum_{i=0}^{k-1} p_i(x) \braket{p_i, m_k}
+        \[[ \tilde p_k(x) &:=& m_k(x) - \sum_{i=0}^{k-1} p_i(x)\,\braket{p_i, m_k}
         \\  p_k(x) &:=& \frac{\tilde p_k(x)}{\sqrt{\braket{\tilde p_k, \tilde p_k}}}
         \]]
         (this process is known as ^#https://mathworld.wolfram.com/Gram-SchmidtOrthonormalization.html#^{Schmidt orthogonalization})
@@ -413,7 +837,7 @@ title: "`aigg` — a generator for spherical integration rules"
 #+       (#(different classes of polynomials? Or just say that the spherical rules we are concerned with can be seen as Gaussian quadratures with either $\Omega=\spa{R}^3$ and $w(\vec r)=\delta(\norm{\vec r}-1)$ or, alternatively, $\Omega=\{\vec r;\,r_x^2+r_y^2+r_z^2=1\}$ combined with $w(
 #+       \vec r)=1$; or the angle interpretation with spherical harmonics (either in spherical coordinates (with $(\theta,\phi)$) or Cartesian coordinates). All conditions can be shown to be equivalent (see our article, which discusses these aspects).)#)
 
-  * What is a &ldquo;{spherical integration} rule&rdquo;?
+  * what is a “{spherical integration} rule”?
 #+     In the last section, we described the general concept of integration rules.
     In the ^#GeneralInterationRuleSection#^{last section}, we described the general concept of integration rules, and general criteria of how to construct them.
     >#SphericalIntegrationRuleSection#<{Here} we describe the rules for the special context of /#spherical integration rules#/, which is what `aigg` and this site are actually concerned with.
@@ -449,7 +873,7 @@ title: "`aigg` — a generator for spherical integration rules"
       Please note specifically that, unlike in everyday life, the term /#“sphere”#/ in this mathematical context always *#refers to the surface of the sphere exclusively#*, and does not include any points /#inside#/ the sphere! The object which describes the points /#enclosed#/ by a sphere is called a ^#https://en.wikipedia.org/wiki/Ball_(mathematics)#^{_#ball#_} (which can be open or closed, depending on whether the sphere surface itself is included, too); however, all material on this site is concerned with spheres only, not balls.
 
 
-    * {Integration} of functions {on the} unit {sphere}
+    * {integration} of functions {on the} unit {sphere}
       In some application problems, we have to work with functions $f(x,y,z)$ which are only defined for (or meaningful for, or for other reasons restricted to) arguments $(x,y,z)$ which lie on the unit sphere $\spa{S}_2$, and for which integrals over the unit sphere need to be numerically calculated.
       This constellation may sound purely academic at first, and it is indeed not /#common#/ -- but there is a number of /#very important#/ real-world problems in which exactly this process is critial, both in terms of accuracy and stability requirements and computational time.
       ⟨newline⟩
@@ -540,7 +964,7 @@ title: "`aigg` — a generator for spherical integration rules"
         The spherical harmonics carry two indices: $l\in\{0,1,2,\ldots\}$ denotes the shell index, and within each shell, there are $2l+1$ components indexed by $m\in\{-l,-(l-1),\ldots,(l-1),l\}$).
         One (of several) concrete definitions for the $Y_{lm}$ is:
   #+         \[ Y_{lm}(\theta,\phi) = \qquad\text{(for $l\in\{0,1,2,\ldots\}$, and $m\in\{-l,(-l+1),\ldots,(l-1),l\}$)}\]
-        \[ Y_{lm}(\theta,\phi) = (-1)^m \sqrt{\frac{(2l+1)}{4\pi}\frac{(l-m)!}{(l+m)!}}\,P_{lm}\bigl(\cos(\theta)\bigr) e^{\ii m \phi}\]
+        \[ Y_{lm}(\theta,\phi) = (-1)^m \sqrt{\frac{(2l+1)}{4\pi}\frac{(l-m)!}{(l+m)!}}\,P_{lm}\bigl(\cos(\theta)\bigr)\,e^{\ii m \phi}\]
         where $P_{lm}(z)$ denote the so-called /#“associated Legendre polynomials”#/ (#(...which are not necessarily polynomials)#).
   #+         (some formula, link to Wikipedia)
         The detailed meaning of this definition is not of consequence (we will not use it, see below).
@@ -854,7 +1278,7 @@ title: "`aigg` — a generator for spherical integration rules"
 #+      </div>
 
 
-  * {Spherical} integration {rules supported by point groups}
+  * {spherical} integration {rules supported by point groups}
 #+     * How may point group symmetries be used to constrain integration rules?
     * Integration rules of given group symmetries symmetry
       (illustrate with a single reflection operation?)
@@ -918,7 +1342,7 @@ title: "`aigg` — a generator for spherical integration rules"
         The positions of the seed points, $\{\vec r_q\}$, are non-linear parameters to the optimization problem; these are what is actually optimized during an `aigg` run for a single grid.
         By default, they are optimized using a trust-region Newton method.
       - The details of optimization process, as well as the derivation of the optimization formulas, are is described in detail in ^#AiggArticle1#^{our article}.
-  * Point group {symmetries supported by aigg}
+  * point group {symmetries supported by aigg}
 #+     (help in optimizing rules by reducing the search space)
     * Polyhedral point groups
 #+       In general, _#point groups#_ are mathematical groups; the group elements here represent orthogonal linear transformations (combinations of rotations and/or reflections around the coordinate origin) which map $\spa{R}^3$ onto itself.
@@ -1058,477 +1482,87 @@ title: "`aigg` — a generator for spherical integration rules"
           (#(and since the points have to stay on the sphere, too, they therefore can only move on a great circle with fixed spatial orientation in space)#)
 
 #+       These can therefore be applied to map points $\vec r\in\spa{R}^3$
-* {Example applications} of spherical integration rules
-  * Example: {Use in} Density Functional Theory ({DFT})
-    * Molecular electronic structure depends on spherical integration rules
-#+     * Molecular DFT depends on spherical integration rules
-#+     * Most molecular electronic structure calculations depend on spherical integration rules
-  #+   for density functionals
-  #+ Spherical integration rules in molecular integration grids (DFT)
-      - The by far most important practical use of spherical integration rules appears in the context of
-        creating  >#MolecularIntegrationGridSection#<{_#molecular integration grids#_} in theoretical chemistry.
-        Such grids are most commonly used in support of molecular electronic structure calculations employing Density Functional Theory (DFT), but also have a large variety of other applications.
-      - For reasons which will become clear below, spherical integration rules are commonly called _#angular integration grids#_ in this context.
-#+       - In this context, spherical integration rules are commonly called _#angular integration grids#_.
-        This is what the name of the `aigg` program refers to -- it was developed for optimizing spherical integration rules for use in molecular electronic structure calculations.
-  #+       was what it was developed for.
-  #+     , and what it was developed for.
-      - To rationalize this development, we here provide some context on this concrete use case in DFT integration grids.
-    * DFT is a big deal
-#+       But first,
-      But before we begin, first note that DFT is *#not#* an obscure academic curiosity:
-#+         But first, note that DFT is *#not#* only an obscure academic curiosity:
-  #+       a *#big deal#*.
-  #+         is near exclusively done using DFT for treating the electronic structure (“QM”) aspect)
-  #+       (the 1998 Nobel price in chemistry for DFT and Quantum Chemistry itself, and the 2013 Nobel price in chemistry for QM/MM, which in practice is near exclusively done using DFT for treating the electronic structure (“QM”) aspects )
-      - There are, literally, /#hundreds of thousands of published research papers#/ addressing either DFT or DFT-related electronic structure theory itself, or employing DFT-based theory or DFT calculations in support of other research.
-      - A large fraction of theoretical chemistry research in industry -- spanning all fields from small molecules over heterogeneous catalysis to bio-science and pharmacy, involve DFT.
-      - Two Nobel prices in chemistry have been awarded which were directly related to DFT:
-        - (#The 1998 Nobel Price in Chemistry (Pople, Hohenberg, Kohn) for DFT and Quantum Chemistry itself#)
-        - (#The 2013 Nobel Price in Chemisty (Karplus, Levitt, Warshel) for QM/MM, which in practice was only made meaningful by using DFT for the “QM” aspect#)
-#+       - Two Nobel prices in chemistry have been awarded which were directly related to DFT
-#+         (#(The 1998 Nobel Price in Chemistry (Pople, Hohenberg, Kohn) for DFT and Quantum Chemistry itself' and 2013 Nobel Price in Chemisty (Karplus, Levitt, Warshel) for QM/MM, which in practice was only made meaningful by using DFT for the “QM” aspect)#)
-#+       /#And almost every molecular DFT program used in practice employs spherical integration rules as a *#central technical component#*!#/
-      And almost every molecular DFT program used in practice employs spherical integration rules as a *#central technical component#*!
-
-    - Background: There are three core classes of DFT programs, using fundamentally different underlying technologies:
-      + /#Molecular programs#/: Programs originally targeted at treating /#molecules#/ typically use local, atom-centered basis functions, and grids as described here (#(e.g., Gaussian, Orca, ADF, Molpro, Turbomole, QChem, etc.)#).
-        These approaches originate from the “chemistry side” of theory, and traditionally are primarily used to answer chemical questions.
-      + Solid state programs: Programs targeted at /#condensed systems#/ typically use some variety of global plane wave/augmented plane wave basis set (#(e.g., VASP)#)
-        These approaches originate from the “physics side” of theory, and traditionally have been primarily used to answer physical or materials science questions (although nowadays they are frequently used for chemistry in condensed environments, too)
-      + Specialty programs: There are also some uncommon alternatives, e.g., programs using a direct real-space representation of the orbitals and/or densities (e.g. FEM or DVR/grids).
-        These are mostly used for specialty research purposes in method development (e.g., for single-atom calculations of high accuracy, or guaranteed-precision calculations on small molecules for establishing reference data).
-        ---for most practical applications to molecules or solids, these not competitive with the other mentioned approaches.
-      The integration grids mentioned here are used in the molecular environment, while solid state programs typically use regular Cartesian grids (in conjunction with core-less “soft” pseudo-atoms) to represent the overall density.
-#+     * What are the molecular grids used for in DFT?
-    * Why are {molecular integration grids} used {in DFT}?
-      - Context: xc integrals over space.
-        xc expression generally analytically complicated (in particular, non-linear), and densities not exactly known
-      - Density very un-uniform. But density distributed near-radially close to atomic centers. Getting them right there is *#very#* important. Due to high accuracy demands, even minimal errors near the cores can and *#will#* break the calculation
-    * How are {spherical rules} used {in} constructing {molecular integration grids}?
-      - Atomic grids: atom centered, and weighted against each other (smooth Voronoi)
-      - For the atomic grids: atomic rules combined with angular grids
-      - As of 2020, Lebedev grids are used near-exclusively for the angular part.
-        The grids from `aigg` are meant to replace those, as higher quality alternatives and with finer granularity.
-    * Which {advantages over earlier grids} do we see?
-#+     How do aigg-generateds grids help, compared to earlier grids?
-      - So far, Lebedev grids used near exclusively.
-        And not always obtained from original sources, and several grids commonly distributed in unofficial sources have turned out to be inaccurate.
-      - Our grids: fewer points, better balance, guaranteed accuracy and numerical precision.
-        Additionally, we provide full transparency: literally every interested party can download and run `aigg` to either re-generate or verify the correctness of a given spherical integration rule.
-        This may seem trivial -- but as mentioned, this was simply not the case before.
-      - All grids distributed with the AIG libraries have been tested -- not only with regard to formal correctness (i.e., making sure that each order $L$ rule does indeed integrate all spherical harmonics $Y_{lm}(\theta,\phi)$ with $l\leq L$ numerically exactly), but also in the sense of providing the expected level of accuracy if used the construction of molecular integration grids and employed in DFT calculations.
-      - Less issues with geometry optimization
-      - Full coverage of $L$ space, and each rule well tested in practice.
-        $\Rightarrow$ may enable /#real#/ adaptive integration grids, rather than the extremely heuristic grid pruning commonly done.
-#+         - (#(power usage in computing centers?)#)
-      - While some of these aspects may appear minor at first glance, note that molecular DFT calculations are globally deployed on such a /#massive scale#/ (see “DFT is a big deal” above), that even a modest hypothetical 1% improvement in calculation efficiency might well represent electrical power savings corresponding to several full 1000 MW electric power plants.
-        And in many calculations, the improvements mentioned here could result in much larger improvements to efficiency and stability of molecular DFT calculations
-        - (#Note that this is not /#only#/ a matter of the number of integration points, which directly influence the calculation efficiency of the xc-integration:#)
-        - (#The quality of the integration rules may well make a /#qualitative difference#/ with large consequences; for example, ...#)
-          - (#...between a DFT-based geometry optimization which converges at first try, and one which fails, then needs to be manually investigated, setup again and repeated from the very start;#)
-          - (#...or between a (very expensive) nuclear Hessian calculation to confirm the nature of a stationary point on a potential energy surface which is either acceptable as is, or reveals the presence of some unexpected imaginary frequencies caused by grid-related numerical noise, indicating that /#the entire calculation#/ is invalid -- including the geometry optimization which preceeded it -- and must be completely repeated with an adjusted calculation protocol involving more accurate grids.#)
-
-          (#In fact, these issues are prevalent enough that many users of computational chemistry software use molecular integration rules with a very high target accuracy unconditionally -- including in the majority of cases where they are not needed -- for the sole sake of /#avoiding the hassle#/ associated with such problems from the outset (basically, trading computing time for human time).
-          However, this practice can /#greatly#/ increase the computation time associated with a certain research task, and if better grids would prevent the need for that, a lot would be won.#)
-          - (*Note that also very real practical issues with integration grids may not necessarily be attributed to said grids by users of software. This is not commonly something considered from the outset.*)
-#+            from the outset
-#+          or a non-acceptable vibrational frequency calculation
-#+         converging or non-converging
-
-#+ * Obtaining aigg-generated tabulated Angular Integration Grid (AIG) libraries, and incorporating them in your own programs
-#+ * The Angular Integration Grid (AIG) libraries: Spherical rules for your own programs
-#+   * What are the Tabulated Angular Integration Grid (AIG) libraries?
-* {The AIG libraries}: Spherical rules for your own programs
-  * {What are} the tabulated angular integration grid {(AIG) libraries}?
-    - To simplify incorporating `aigg`-generated integration rules in other programs,
-      we here provide a separate set of program components -- >#TabulatedAngularIntegrationGridLibrariesSection#<{the AIG libraries} -- which allow for easily using well-defined collections of spherical integration rules in various programming languages.
-      These are separate objects from the generator `aigg` itself (see ^#AiggProgramSection#^{the aigg program section}).
-    - The AIG libraries are very simple program components which, for all practical purposes, can be viewed as systematic collections of integration rule data.
-      Effectively, they consist of a curated set of spherical integration rules, which we optimized, tested, and selected, for use in other programs.
-    - The AIG libraries therefore only provide the following functionality:
-      + *#Enumerating#* the stored angular integration grids
-      + *#Querying#* their core properties. E.g., the number of points $N$ in the grid, the order $L$ (#(=highest $L$ up to which they integrate exactly all spherical harmonics $Y_{lm}(\theta,\phi)$ with $l\in\{0,1,\ldots,L\}$ and $m\in\{-l,\ldots,+l\}$)#), symmetry type, weight spread, literature citation,
-      + *#Instanciating#* the contained grids. That means obtaining the explicit list of grid points $\{\vec r_g\}$, with $g\in\{0,1,\ldots (N-1)\}$, and associated weights $\{w_g\}$, which make up the angular integration grid (=spherical integration rule).
-      + *#Identifying#* the represented version of the angular integration grid collection (#(to distinguish it from future or past releases of integration rule collections)#)
-    (#Background note:#)
-    - (#Internally, the AIG libraries do not store the points of the integration rules as raw data.#)
-    - (#Rather, for each integration rule, they only contain an “irreducible” subset of information:
-#+       regarding the integration rules as raw data:
-      namely the set of /#“seed points”#/ of the integration rules (#(see article. These are symmetry unique points of the rule; or, in group theory language: for each point $\vec r_i\in\spa{R}^3$ of the actual rule, there is only a single canonical representative $\vec r_q\in\spa{R}^3$ of the group orbit
-      \[ \groupname{G}(\vec r_q) = \{\groupelement{g}(\vec r_q);\,\groupelement{g}\in\groupname{G}\}\]
-      in which $\vec r_i$ is contained.)#), and their associated weights and orbit types.#)
-    - (#This essential data is then combined with simple code for generating group orbits (for each orbit type and each supported symmetry group) to obtain the output point lists used in the host program, which make up the actual integration rules.#)
-    - (#Compared with storing actual point lists, this approach greatly reduces the amount of stored information, and therefore greatly reduces the compiled code size and amount of required memory.#)
-#+     - Their sole purpose is to enumerate the sets of contained integration grids (which
-#+   * Legal matters
-  * {Incorporating AIG libraries} into host programs
-    - The AIG libraries are redistributable libraries which provide the main access to the tabulated integration rule data generated by `aigg`.
-    - The AIG libraries are designed for minimal amounts of hassle when incorporating them into host programs:
-      - We provide variants for multiple programming languages popular in scientific computing (C++98, Fortran90, Python2/3), and variants for other languages can be easily ported from those
-      - For each language, they consist of only one to five source files
-
-        (#(While we call them /#“libraries”#/, in practice one would typically just /#copy#/ the corresponding AIG library source files into the host programs source code tree, rather than building them as separate static or dynamic link libraries. So there is no/minimal need to adjust build scripts, and no need to add external dependencies)#)
-      - For reasons of compatibility, the AIG libraries use only very basic features of the corresponding programming language standard, and do not add any dependencies on third party libraries or special compilers.
-#+     - While we call them “libraries”, in practice the one would typically just /#copy#/ the corresponding AIG library source files into the host programs source code tree, rather than using them as “libraries” in the technical sense of the term (static or dynamic link libraries).
-    - The AIG libraries are distributed under a /#“do as you like, as long as you don't blame us if anything goes wrong”#/-license (see enclosed license files for details):
-
-      - Essentially, you may use the code of the AIG libraries in any way you see fit, without royalties: in commercial, semi-commercial, or non-commercial programs; in programs with closed, shared, or open source; with or without attribution; in single programs or redistributed as part of other programs or libraries
-      - This holds as long as you understand that we (the authors) provide /#no guarantees of fitness of the AIG libraries for any purpose#/ (in particular, we do not /#guarantee#/ that any of the code in the libraries actually does what it says it does), and therefore also understand that we do not take /#any#/ responsibiliy for /#any#/ potential damages or liabilities resulting from the use of the code, and as long as notes describing this legal prerequisite for using our code are retained in redistributed versions.
-
-    - While not strictly required, we would appreciate it if...
-      - ...the use of these libraries were pointed out in the host program's manual or documentation at an appropriate place (including a link to this website and possibly a link/citation to its ^#AiggArticle1#^{scientific article}),
-      - ...if scientific projects using the libraries would include an appropriate citation to its ^#AiggArticle1#^{scientific article}
-      - ...and if notes describing the origin of the code were retained in the source files if modified (including pointers to this website), particularly if the modified versions are redistributed as parts of other projects.
-      Doing so would allow us to take (scientific) credit for these developments, facilitate our continued development of the project, and also allow potentially later users of the software to obtain original or updated files in the future.
-#+      (apart from the “provided as is with not guarantees of fitness for any purpose” clause)
-#+     for generated grid instanciation libraries (different from aigg program library itself)
-
-#+       Note the distinction between `aigg` and the AIG libraries:
-#+       ...didn't you say `aigg` is licensed under GPLv2?
-    NOTE: license(`aigg`) != license(AIG libraries)
-    - Note that unlike the tabulated AIG libraries we provide here, the `aigg` program /#itself#/, which was used to /#generate#/ the data tabulated in those libraries, is licensed under a GPLv2 license.
-    - However, as mentioned, `aigg` itself **is not required** to use the tabulated grid libraries in other programs.
-
-    - Typically, other programs would /#only#/ incorporate the tabulated AIG libraries, not `aigg` itself or parts thereof.
-      - For this reason, the `aigg` license does not apply to programs using only the AIG libraries.
-        In particular, using the AIG libraries does not place the host program under GPL, nor does it imply any other strict legal consequences for the host program (except the transfer of potential legal liabilities or damages resulting from use of the AIG libraries from us to the legal entity associated with the host program)
-  * {Obtaining} the tabulated {grid libraries}
-  * Interface definitions
-    Each version of the AIG libraries essentially exposes the following two functionalities:
-    - Enumeration of available grids, including properties
-    - Generation of arrays which define the $\{(\vec r_g, w_g);\,g\in\{0,1,\ldots,(N-1)\}\}$ data of the grid.
-
-    * Conventions on raw grids
-      The raw grids exported by the AIG libraries follow the following conventions:
-      - They always represent the /#unit sphere#/ $\spa{S}_2\subset \spa{R}^3$; that is, the (two-dimensional) sphere in 3D space $\spa{R^3}$ around the coordinate origin (zero vector), with unit radius.
-      - In particular, all returned grid points $\vec r_g$ will fulfill
-        \[ \norm{\vec r_g} = \sqrt{x_g^2 + y_g^2 + z_g^2} = 1. \]
-        up to numerical precision.
-      - *#The returned weights are normalized to unity, not to $4\pi$!#*
-
-        Concretely, the returned weights will fulfill the condition
-        \[ \sum_{g=0}^{N-1} w_g = 1\]
-        up to numerical precision, rather than $\sum_g w_g=4\pi$, as one could also define (#(and, in fact, ^#SphericalIntegrationRuleSection#^{as we did earlier})#).
-      The second condition means that the /#actual#/ approximation represented by the rule is
-      \[ \int_{\spa{S}_2} f(\vec r)\,\d\Omega \approx 4\pi \sum_g f(\vec r_g) w_g. \]
-      So the $4\pi$ factor of the solid angle integral must be supplied separately, and will typically be included as part of the /#volume element#/ $4\pi\,r^2\,\d r$ when instanciating a series of spherical rules around a center $\vec c$ to cover $\spa{R}^3$ space (see next section and the ^#MolecularIntegrationGridSection#^{section on molecular integration grids}).
-    * {Spherical grids} for spheres {of radius $r$ around center} $\vec c$
-      - The returned raw grids can be easily translated into spherical rules which integrate a sphere of any radius $R>0$ around any center $\vec C\in\spa{R}^3$.
-      - Concretely, let $(\vec r_g,w_g)$ define a 1-normalized unit sphere grid as (as generated by the AIG libraries).
-        Define its transformation:
-        \[[ \vec r_g' &=& \vec C + R\,\vec r_g
-        \\  w_g' &=& 4\pi R^2 w_g.
-        \]]
-      - Then the following integral approximation holds:
-        \[ \int_{S(\vec C,R)} f(\vec r)\,\d\Omega \approx \sum_g f(\vec r_g')\,w_g' \]
-        where $S(\vec C,R)$ denotes the sphere in $\spa{R}^3$ space of radius $R>0$ around point $\vec C\in\spa{R}^3$:
-        \[ S(\vec C, R) := \bigl\{ \vec r\in\spa{R}^3:\, \norm{\vec r - \vec C} = R \bigr\}.\]
-        The Python version of the libraries includes a function to generate grids in this transformed manner directly at $(\vec C, R)$.
-      - Note that in many practical applications, it is advisable to additionally orient the grids into a object-local frame, by applying a suitable $(3,3)$-shape rotation matrix to the $\vec r_g$ before transforming them to $(\vec C, R)$.
-        The reason for this is that the grids are not perfectly rotationally invariant (that is impossible for finite grids!), and aligning the grids into a fixed object-local frame can work around certain calculation artifacts
-        (#(e.g., in molecular integration grids in DFT, this will make DFT energy of the molecule independent of the molecule's orientation in $\spa{R}^3$ space)#).
-  * {Example} of using them {in C++}
-  * {Example} of using them {in Fortran}
-  * {Example} of using them {in Python}
-
-#+ * Introduction to aigg and the AIG libraries
-* {The aigg program}: Generating new spherical integration rules
-#+   * What does the aigg program do?
-  * {Introductory comments} on the {aigg} program
-#+     - In one spatial dimension, there are many well-known integration rules (aka “quadrature rules”), which afford efficient ways of numerically approximating definite integrals via
-#+       \[  \int_a^b f(x)\,\d x = \sum_{g=1}^N f(r_g) w_g. \]
-#+       The “integration rule” in this case is the set of _#grid points#_ $r_g\in[a,b]$ (aka “ordinates”) are to be placed, combined with their associated _#weight#_ $w_g$ (#(in a more abstract sense, the term “integration rule” is sometimes also used to denote the /#algorithm#/ to determine the $\{(r_g,w_g);\,g=1,\ldots, N\}$, rather than the resulting set of points and weights itself)#).
+#+* {Example applications} of spherical integration rules
+#+  * Example: {Use in} Density Functional Theory ({DFT})
+#+    * Molecular electronic structure depends on spherical integration rules
+#+#+     * Molecular DFT depends on spherical integration rules
+#+#+     * Most molecular electronic structure calculations depend on spherical integration rules
+#+  #+   for density functionals
+#+  #+ Spherical integration rules in molecular integration grids (DFT)
+#+      - The by far most important practical use of spherical integration rules appears in the context of
+#+        creating  >#MolecularIntegrationGridSection#<{_#molecular integration grids#_} in theoretical chemistry.
+#+        Such grids are most commonly used in support of molecular electronic structure calculations employing Density Functional Theory (DFT), but also have a large variety of other applications.
+#+      - For reasons which will become clear below, spherical integration rules are commonly called _#angular integration grids#_ in this context.
+#+#+       - In this context, spherical integration rules are commonly called _#angular integration grids#_.
+#+        This is what the name of the `aigg` program refers to -- it was developed for optimizing spherical integration rules for use in molecular electronic structure calculations.
+#+  #+       was what it was developed for.
+#+  #+     , and what it was developed for.
+#+      - To rationalize this development, we here provide some context on this concrete use case in DFT integration grids.
+#+    * DFT is a big deal
+#+#+       But first,
+#+      But before we begin, first note that DFT is *#not#* an obscure academic curiosity:
+#+#+         But first, note that DFT is *#not#* only an obscure academic curiosity:
+#+  #+       a *#big deal#*.
+#+  #+         is near exclusively done using DFT for treating the electronic structure (“QM”) aspect)
+#+  #+       (the 1998 Nobel price in chemistry for DFT and Quantum Chemistry itself, and the 2013 Nobel price in chemistry for QM/MM, which in practice is near exclusively done using DFT for treating the electronic structure (“QM”) aspects )
+#+      - There are, literally, /#hundreds of thousands of published research papers#/ addressing either DFT or DFT-related electronic structure theory itself, or employing DFT-based theory or DFT calculations in support of other research.
+#+      - A large fraction of theoretical chemistry research in industry -- spanning all fields from small molecules over heterogeneous catalysis to bio-science and pharmacy, involve DFT.
+#+      - Two Nobel prices in chemistry have been awarded which were directly related to DFT:
+#+        - (#The 1998 Nobel Price in Chemistry (Pople, Hohenberg, Kohn) for DFT and Quantum Chemistry itself#)
+#+        - (#The 2013 Nobel Price in Chemisty (Karplus, Levitt, Warshel) for QM/MM, which in practice was only made meaningful by using DFT for the “QM” aspect#)
+#+#+       - Two Nobel prices in chemistry have been awarded which were directly related to DFT
+#+#+         (#(The 1998 Nobel Price in Chemistry (Pople, Hohenberg, Kohn) for DFT and Quantum Chemistry itself' and 2013 Nobel Price in Chemisty (Karplus, Levitt, Warshel) for QM/MM, which in practice was only made meaningful by using DFT for the “QM” aspect)#)
+#+#+       /#And almost every molecular DFT program used in practice employs spherical integration rules as a *#central technical component#*!#/
+#+      And almost every molecular DFT program used in practice employs spherical integration rules as a *#central technical component#*!
 #+
-#+       In particular,
+#+    - Background: There are three core classes of DFT programs, using fundamentally different underlying technologies:
+#+      + /#Molecular programs#/: Programs originally targeted at treating /#molecules#/ typically use local, atom-centered basis functions, and grids as described here (#(e.g., Gaussian, Orca, ADF, Molpro, Turbomole, QChem, etc.)#).
+#+        These approaches originate from the “chemistry side” of theory, and traditionally are primarily used to answer chemical questions.
+#+      + Solid state programs: Programs targeted at /#condensed systems#/ typically use some variety of global plane wave/augmented plane wave basis set (#(e.g., VASP)#)
+#+        These approaches originate from the “physics side” of theory, and traditionally have been primarily used to answer physical or materials science questions (although nowadays they are frequently used for chemistry in condensed environments, too)
+#+      + Specialty programs: There are also some uncommon alternatives, e.g., programs using a direct real-space representation of the orbitals and/or densities (e.g. FEM or DVR/grids).
+#+        These are mostly used for specialty research purposes in method development (e.g., for single-atom calculations of high accuracy, or guaranteed-precision calculations on small molecules for establishing reference data).
+#+        ---for most practical applications to molecules or solids, these not competitive with the other mentioned approaches.
+#+      The integration grids mentioned here are used in the molecular environment, while solid state programs typically use regular Cartesian grids (in conjunction with core-less “soft” pseudo-atoms) to represent the overall density.
+#+#+     * What are the molecular grids used for in DFT?
+#+    * Why are {molecular integration grids} used {in DFT}?
+#+      - Context: xc integrals over space.
+#+        xc expression generally analytically complicated (in particular, non-linear), and densities not exactly known
+#+      - Density very un-uniform. But density distributed near-radially close to atomic centers. Getting them right there is *#very#* important. Due to high accuracy demands, even minimal errors near the cores can and *#will#* break the calculation
+#+    * How are {spherical rules} used {in} constructing {molecular integration grids}?
+#+      - Atomic grids: atom centered, and weighted against each other (smooth Voronoi)
+#+      - For the atomic grids: atomic rules combined with angular grids
+#+      - As of 2020, Lebedev grids are used near-exclusively for the angular part.
+#+        The grids from `aigg` are meant to replace those, as higher quality alternatives and with finer granularity.
+#+    * Which {advantages over earlier grids} do we see?
+#+#+     How do aigg-generateds grids help, compared to earlier grids?
+#+      - So far, Lebedev grids used near exclusively.
+#+        And not always obtained from original sources, and several grids commonly distributed in unofficial sources have turned out to be inaccurate.
+#+      - Our grids: fewer points, better balance, guaranteed accuracy and numerical precision.
+#+        Additionally, we provide full transparency: literally every interested party can download and run `aigg` to either re-generate or verify the correctness of a given spherical integration rule.
+#+        This may seem trivial -- but as mentioned, this was simply not the case before.
+#+      - All grids distributed with the AIG libraries have been tested -- not only with regard to formal correctness (i.e., making sure that each order $L$ rule does indeed integrate all spherical harmonics $Y_{lm}(\theta,\phi)$ with $l\leq L$ numerically exactly), but also in the sense of providing the expected level of accuracy if used the construction of molecular integration grids and employed in DFT calculations.
+#+      - Less issues with geometry optimization
+#+      - Full coverage of $L$ space, and each rule well tested in practice.
+#+        $\Rightarrow$ may enable /#real#/ adaptive integration grids, rather than the extremely heuristic grid pruning commonly done.
+#+#+         - (#(power usage in computing centers?)#)
+#+      - While some of these aspects may appear minor at first glance, note that molecular DFT calculations are globally deployed on such a /#massive scale#/ (see “DFT is a big deal” above), that even a modest hypothetical 1% improvement in calculation efficiency might well represent electrical power savings corresponding to several full 1000 MW electric power plants.
+#+        And in many calculations, the improvements mentioned here could result in much larger improvements to efficiency and stability of molecular DFT calculations
+#+        - (#Note that this is not /#only#/ a matter of the number of integration points, which directly influence the calculation efficiency of the xc-integration:#)
+#+        - (#The quality of the integration rules may well make a /#qualitative difference#/ with large consequences; for example, ...#)
+#+          - (#...between a DFT-based geometry optimization which converges at first try, and one which fails, then needs to be manually investigated, setup again and repeated from the very start;#)
+#+          - (#...or between a (very expensive) nuclear Hessian calculation to confirm the nature of a stationary point on a potential energy surface which is either acceptable as is, or reveals the presence of some unexpected imaginary frequencies caused by grid-related numerical noise, indicating that /#the entire calculation#/ is invalid -- including the geometry optimization which preceeded it -- and must be completely repeated with an adjusted calculation protocol involving more accurate grids.#)
 #+
-#+     targeting different classes of functions:
-#+       For example:
-#+       + /#Gaussian quadrature:#/
-#+       Quadrature
-#+ #+     classes of integration rules are known for integrating certain classes of
-    - First: >#AiggProgramSection#<{`aigg`} stands for Angular Integration Grid Generator. It is the program for /#constructing#/ and /#optimizing#/ spherical rules, which are then typically gathered and tabulated for use in other programs
-    - ***Downloading, installing, or running `aigg` is not required to use the generated spherical integration rules***.
-      + Just /#using#/ integration rules is the /#typical#/ use case. This is much simpler than generating them, and if that is what you are after, see the section on using the ^#TabulatedAngularIntegrationGridLibrariesSection#^{Tabulated Angular Integration Grid Libraries}.
-      + For almost every practical usage case of spherical grids in chemistry, one would never need to bother with `aigg` itself, and simply use the pre-packed grids!
-    - As mentioned, `aigg` is used to /#compute and optimize#/ the spherical integration rules /#themselves#/.
-      It is what was used to /#construct#/ the rules which the AIG libraries (=tabulated grid libraries) contain.
-      The main source of the `aigg` program, and most of this documentation (this site), are not required to use resulting rules (#(...but we do appreciate citations to our ^#AiggArticle1#^{scientific article})#)
-    - We publish `aigg` and this documentation mostly for reasons of transparency (there really is no reason not to -- and the grids are important enough that we think the exact process in which they are generated should be made public), and as a community resource to facilitate specialty developments by other researchers.
-
-#+ * Running aigg / using aigg to generate new angular integration grids
-  * When should I install, run, or modify aigg?
-    First, when do you /#not#/ need the actual `aigg` program?
-    - If you just wish to try out or incorporate our spherical integration rules in your own program,
-      we recommend using ^#TabulatedAngularIntegrationGridLibrariesSection#^{our pre-packed spherical rule sets}.
-    - In this case, there is /#no need#/ to either install or run `aigg`.
-      See section on ^#TabulatedAngularIntegrationGridLibrariesSection#^{“tabulated angular integration grid libraries”} for this case.
-
-    However, if you wish to develop /#new#/ spherical integration rules, or wish to see or reproduce how exactly the tabulated rules were made, this section may be of relevance for you. In particular, here are some examples for when you may wish to run or modify `aigg`:
-
-    Some examples of projects one might be interested in, using aigg as-is:
-    - Searching better grids, based on novel initial guesses, optimization strategies, or convergence control algorithms
-    - Generating rules of higher (or just different) orders than presently tabulated
-    - Generating a complete set of rules for specific point groups (#(e.g., only grids of octahedral symmetry which have exact full D2h symmetry)#)
-    - Generating rules with an output numerical accuracy higher provided in the reference libraries
-      (#(we typically provide prepacked libraries with data tabulated to full /#“double precision”#/ (64bit floats) and 128bit floating point precision. If for a special application you need more, you can reoptimize the reference rules to higher precision with `aigg`)#)
-
-    Some examples of projects one might be interested in, which would require modifications/extensions of the aigg program, or for which the present `aigg` may be useful as a starting point:
-#+     , or polyhedral ones including inversion symmetry
-    - Modifying `aigg` to include additional point groups (#(e.g., axial ones)#)
-
-#+       (#(aigg presently uses 128bit floating point arithmetic internally by default, and the tabulated-grid-libraries generate grids with guaranteed full 64bit float accuracy. But some specialty applications could need even higher precision in some contexts)#)
-    - Making spherical integration rules for sets of target functions different than the full set of spherical harmonics/Cartesian monomials up to a certain order in $L$
-      (#(e.g., if one were to know that for an application in a given program, all functions integrated with the numerical integration rules always had certain additional symmetries or other properties not necessarily exposed by the sets of spherical harmonics. In that case it may be possible to generate more efficient specialty integration rules for these classes of functions than possible for the spherical harmonics; i.e., which require less points to integrate these functions exactly than would be needed to integrate the full sets of spherical harmonics exactly)#)
-    - Making integration rules for manifolds other than straight unit spheres, or including weight functions $w(\vec r)$ which are not uniformly equal to 1
-      (#(e.g., for half-spheres, or elongated spheres or cylinders etc.)#)
-    - Making sets of spherical integration rules for space dimensions other than three (#(e.g., integration rules for the four-dimensional sphere)#)
-#+     - Making non-separable optimized integration rules for 3D unit balls (i.e., the set of points $\vec r\in\spa{R}^3$ with $\norm{\vec r}\leq 1$) or sphere shells of finite thickness $h>0$ (i.e., the set of points $\vec r\in\spa{R}^3$ with $\norm{\vec r}\in\bigl[1-\frac{h}{2},1+\frac{h}{2}\bigr]$)
-    - Making non-separable optimized integration rules for 3D unit balls:
-      \[ B_3=\bigl\{\vec r\in\spa{R}^3\;\text{with}\;\norm{\vec r}\leq 1\bigr\}\]
-      or sphere shells of finite thickness $h>0$:
-      \[ S_{2,h}:=\Bigl\{\vec r\in\spa{R}^3\;\text{with}\; \norm{\vec r}\in\bigl[1-\efrac{h}{2},1+\efrac{h}{2}\bigr]\Bigr\}\]
-
-    ...or just general research of integration rules, or just plain general interest in the topic.
-
-#+     aigg is what you use if you:
-#+     0 if you wish to develop /#new#/ spherical integration rules
-#+     However, if you wish to develop /#new#/ spherical integration rules
-
-#+       If you are looking for our pre-packed spherical rule sets, you do not need to either install or run aigg. See chapter on “tabulated grid libraries” in this case.
-  * Compiling aigg
-    * Library dependencies
-      - Eigen
-      - Boost (in particular, boost/multi_precision)
-      - Only tested with gcc. Uses gcc's __float128 option, if available.
-
-        (#(since the rule optimizer is targeted at a small number of developers, the explicit compiler, library, and platform dependencies seem acceptable. Note also that the program will run fine in both WSL (the windows subsystem for linux) and an actual linux VM)#)
-      - scons as build system
-      - Only tested on linux
-    * {Setup of build environment} in SConstruct
-    * Parellelization
-      - ...is technically enabled using OpenMP; however, much time is spent on linear algebra
-        routines, and apart from a small number of exceptions, these are not parallelized in Eigen.
-        And it does need eigen, because it requires the ability to use high precision floating
-        point arithmetic.
-      - Recommended procedure is to simply start many instances of `aigg` at once (for different rules), using `nice` to tell them to make way for other programs. We have found this to work okay even when starting thousands of grid optimization jobs at the        same time, on a single notebook computer.
-  * Command line invocation
-    - either commands directly on the line
-    - of stored in input files
-    - commented examples are given in `inputs/` directory
-    - Here only main options. Full set of command line options described in `SearchOptions.cpp`.
-      Examples for main usage cases also given below.
-  * Incremental optimization schedules
-    For the larger grids, there are two issues with running the described optimization procedure to obtain a target grid of maximum order $L$ directly:
-    - First, we generally do not know what is the largest order $L$ which an optimized spherical integration rule could possibly realize for a given set of orbits. Consequently, it is not clear which $L$ to choose for optimizing
-    - Second, obtaining an reasonable initial guess of the seed points, which makes it likely that the iterative optimization converges, can be rather difficult if the points have to be guessed ex nihilo.
-
-  #+       Both problems can be addressed by running an _#incremental optimization schedule#_, instead of attempting to optimize the target rule for (unknown) target order $L$ directly.
-  #+       As an example, consider the following process:
-  #+       - Assume we have given an initial set of seed points $\{\vec r_q\}$, which are not necessarily obtained as result of any specific optimization.
-  #+       - We may choose a (small) initial $L$, for which likely an exact integration rule can be obtained (in principle, even $L=0$).
-  #+       - We can then repeat the following process:
-  #+         - /#Step 1:#/ Optimize the seeds and weights for this target $L$.
-  #+         - /#Step 2:#/ If at convergence $r$ is very close to numerical zero ($r<\text{thr-res}$, e.g., $r<10^{-25}$), then the integration rule is considered exact for order $L$.
-  #+           - If the optimized rule is exact for order $L$, increase $L$ and go to /#Step 1#/
-  #+           - If the optimized rule is not exact for order $L$, decrease $L$ to last known working $L$, re-optimize the points and weights, and exit.
-  #+       That is, the parameters of the rule are optimized step by step, for increasingly large target orders $L$.
-  #+       And this is done until an $L$ is found for which `aigg` is no longer able to determine a set of $\{\vec r_q\}$ which yield an exact numerical integration of the target space.
-  #+       The advantages of this process are that (a) the target $L$ does not need to be known beforehand; rather, it is a result of the optimization process, and (b) at each $L$ step, the change in the distribution of points $\{\vec r_q\}$ is smaller than it would be if one were to optimize the rule for the target $L$ directly (without the interemediate steps); this simplfies convergence of the process.
-    Both problems can be addressed by running an >#IncrementalScheduleSection#<{_#incremental optimization schedule#_}, instead of attempting to optimize the target rule for the (generally unknown) target order $L$ directly.
-    In this case, one performs a series of optimizations with gradually increasing (or decreasing) $L$, each time using the result of the last optimization as starting guess.
-  #+       So the parameters of the rule are optimized step by step, for increasingly large target orders $L$.
-    - For an incremental upward search, this is done until an $L$ is found for which `aigg` is no longer able to determine a set of $\{(\vec r_q,w_q)\}$ which yield an exact numerical integration of the target space.
-    - For an incremental downward search, this is done until the first $L$ is found which integrates exactly.
-
-  #+       The advantages of this process are that (a) the target $L$ does not need to be known beforehand; rather, it is a result of the optimization process, and (b) at each $L$ step, the change in the distribution of points $\{\vec r_q\}$ is smaller than it would be if one were to optimize the rule for the target $L$ directly (without the interemediate steps); this simplfies convergence of the process.
-
-    `aigg` supports both /#upward#/ and /#downward#/ incremental search schedules, and allows starting the schedule at arbitrary points and using arbitrary step widths, as well as performing a fixed set of additional operations once the breaking condition is met.
-
-    Example input `inputs/1-incremental-search-up.ini`:
-    #+BEGIN_PYTHON
-    # Make an initial guess using a hexagonal grid with s=5 and t=1 parameters as
-    # described by Ahrens & Beylkin. Then do a series of grid optimizations, each
-    # time using the result of the last calculation as initial guess:
-    #
-    # - First optimize the points & weights of this grid for to minimize the
-    #   residual for the monomials of degree l <= 4 ('[4,..]').
-    # - Then keep on increasing l by +1 (step:+1) until we find the first l for
-    #   which the optimized grid DOES NOT integrate the monomials of degree l
-    #   exactly (in this case (the hex{5;1}-grid) this will be lfinal=30).
-    # - Afterwards, optimize the grid for lfinal-1 ('..,-1]') (which is 29 in this
-    #   case), using the converged, but non-exact solution for lfinal as starting
-    #   guess. The resulting grid will be exact for order 29 again, but will in this
-    #   case possibly show a somewhat better weight distribution
-    { point-group: icosahedral;
-      degree: [4,step:+1,-1];
-      max-step: 1e4*residual;
-      initial-points: hex-grid{5;1;01c}
-    }
-    #+END_PYTHON
-    Example input `inputs/2-incremental-search-down.ini`:
-    #+BEGIN_PYTHON
-    # as 1-incremenal-search-up, but now search incrementally in DOWNWARD direction.
-    # The first grid optimized will be of degree l=35. Then we decrease l by 1
-    # (step:-1) until we find the first grid which integrates exactly.
-    #
-    # additionally, this config shows more fine-tuning options for the step size: by
-    # default use a maximum step size of 10^4 times the current residual, but never
-    # restrict the step size to maximum steps smaller than min:1e-9, and never allow
-    # steps larger than 7e-4.
-    #
-    # In this case, this finds the same grid as the final result of the
-    # 1-incremental-search-up.ini, but this may different in other cases.
-    { point-group: icosahedral;
-      degree: [35,step:-1];
-      max-step: {1e4*residual; max:7e-4; min:1e-9};
-      initial-points: hex-grid{5;1;01c}
-    }
-    #+END_PYTHON
-    *#Comments:#*
-    - Generally, incremental upward searches with steps of either $+1$ or $+2$ appear to be most useful.
-    - For steps of two, it may be advisable to perform separate optimization runs starting at an even and at an odd initial $L$; e.g.,
-      ```
-      degree: [4,step:+2,-1,-2]
-      ```
-      and
-      ```
-      degree: [5,step:+2,-1,-2]
-      ```
-    - In an upward search, such as here, the entries `[…,-1,-2]` mean that after the $L_\mathrm{mx}$ is found which no longer integrates exactly, first attempt to optimize a rule with $L=(L_\mathrm{mx}-1)$. If this rule optimizes exactly $\Rightarrow$ exit. Otherwise, proceed with $L=(L_\mathrm{mx}-2)$. Each time the result of the last optimization is used as starting guess.
-      Further schedule entries may be given for larger incremental step widths.
-  * {Refining existing} integration {rules}
-    `aigg` may be used to either >#RefineExistingRuleSection#<{verify or refine existing integration rules} supplied as input data in rather general formats.
-
-    - If used in this way, `aigg` will read the initial seed points from an externally given text file, and use these as starting guess for a grid optimization.
-      The input file is specified in the rather free form format described below (#(the weights, if given, are ignored)#),
-
-    - The seed points may be given in terms of either Cartesian coordinates, or in terms of ^#https://en.wikipedia.org/wiki/Barycentric_coordinate_system#Barycentric_coordinates_on_triangles#^{barycentric coordinates} with respect to the ^#FundamentalRegionsSection#^{fundamental region}.
-
-    Example input `inputs/3-refine-initial-grid.ini`:
-    #+BEGIN_PYTHON
-    # This time do the following:
-    # - Read the initial cartesian points from a data file (e.g., a
-    #   set of points made by previous runs of the grid optimization).
-    #   The file here is called points 'inputs/312-guess.txt' (where
-    #   'inputs' is the directory relative to the current directory).
-    #
-    #   Regarding the file format, the following conventions hold:
-    #     * The first line of the file is ignored.
-    #     * Of every other line, the first three elements separated by spaces
-    #       are read as cartesian coordinates. The rest of the line is ignored
-    #       (including possible weights, if given)
-    #     * File reading ends once we encounter a line which cannot be read
-    #       as three floating point numbers.
-    #     * Lines startig with '#' or '//' are ignored.
-    # - Then optimize a grid of degree 30 with these starting points, and
-    #   use its result as initial guess for an optimization of degree 29.
-    { point-group: icosahedral;
-      degree: [30,29];
-      max-step: {1e4*residual; max:7e-4; min:1e-9};
-      initial-points: read-cartesian{inputs/points-312-guess.txt}
-    }
-    #+END_PYTHON
-    Example input `inputs/4-refine-barycentric-coordinate-guess.ini`:
-    #+BEGIN_PYTHON
-    # as 3-refine-initial grid, but this time read the input positions as
-    # barycentric coordinates of the fundamental region (for icosahedral,
-    # tetrahedral, and octahedral grids this is a triangle in all cases). The inputs
-    # is given in triples of tau0, tau1, tauC. What these mean depends on the point
-    # group (see ConvertBarycentricToCartesian function).
-    #
-    # For icosahedral grids, both tau0 and tau1 refer to vertices of the
-    # icosahedron, and tauC refers to the mid point ('c'entral point) of an
-    # icosahedron face.
-    #
-    # The file format works as in the cartesian case: The first line is ignored, and
-    # only the first three scalars are read as actual input. Reading stops once we
-    # reach a line which does not start with three scalars.
-    { point-group: icosahedral;
-      degree: [step:+1,-1];
-      max-step: 1e-3;
-      initial-points: read-barycentric{inputs/barycentric-guess.txt}
-    }
-    #+END_PYTHON
-
-  * {Exporting and visualizing} integration {rules}
-    If the optimized rules are meant for further processing (or packaging),
-    it is advisable to ask `aigg` to export the core information of the optimized grid to a separate data file, rather than attempting to parse it from the `aigg` standard output.
-    Doing so also allows automatically retaining only the /#“best”#/ version of a rule encountered during a optimization schedule (see comments below).
-    This is done using the `export` option as shown here:
-
-    Example input `inputs/6-export-and-visualization.ini`:
-    #+BEGIN_PYTHON
-    # This file contains a command to export the final integration points to a data
-    # file. With 'points: all', all symmetry-equivalent points will be explicitly
-    # generated and exported (e.g., here, a general seed point leads to 60 exported
-    # points, a seed point on a vertex leads to 12 exported points, etc).
-    # Alternatively, one can give 'points:seeds', in which case only the unique
-    # points are exported.
-    #
-    # If the required python packages are installed and a suitable graphics card
-    # driver is present, the so-computed grid points can be visualized with
-    #
-    #     visualize_rule.sh ico-3-2.dat
-    #
-    # (use filename you used for export, here 'ico-3-2.dat')
-    { point-group: icosahedral;
-      degree: [15,step:+1,-1];
-      max-step: 1e4*residual;
-      initial-points: hex-grid{3;2;01c};
-      export: {file: ico-3-2.dat; format: text; points: all}
-    }
-    #+END_PYTHON
-    In this case, running `aigg --config inputs/6-export-and-visualization.ini` generates a file `ico-3-2.dat` with the following content:
-    #+BEGIN_PYTHON
-    # icosahedral integration rule: npts = 192, lmax = 23, wtsp = 1.298, res = 9.49e-33
-    # generated by kgaigg v20200620 (compiled: Jun 20 2020)
-      8.506508083520399321815405e-01   0.000000000000000000000000e+00   5.257311121191336060256691e-01   4.164880157580242505412690e-03   12   (icosahedral-vertex)
-      9.389133803811559787521034e-01   1.134729659940559359608633e-01   3.249085257880170314894821e-01   5.077679306001083356874116e-03   60   (icosahedral-general)
-      9.696669087810822363832319e-01   2.278851408290567536955890e-01   8.839936993135930626670278e-02   5.349546802216596883184665e-03   60   (icosahedral-general)
-      9.903922163546059654139378e-01   6.106051248825701525715709e-02  -1.240760718224218169143828e-01   5.406464526932937925525348e-03   60   (icosahedral-general)
-    #+END_PYTHON
-    This indicates an integration rule with:
-    - `npts=192` $\{(\vec r_g,w_g)\}$ points total, generated from four seed points: one on a ^#SpecialOrbitsSection#^{special icosahedral vertex orbit} with 12 points, and three on ^#SpecialOrbitsSection#^{general icosahedral orbits} with 60 points each.
-    - Order `lmax=23`; that is, a rule which integrates all spherical harmonics $Y_{lm}(\theta,\phi)$ with $l\leq 23$ numerically exactly (or, ^#MonomialsVsSphericalHarmonicsSection#^{equivalently}: all Cartesian monomials $m_{ijk}(x,y,z)$ with $i+j+k\leq 23$)
-    - A very small weight spread
-      \[ \text{wtsp} := \frac{\max(\{w_g\})}{\min(\{w_g\})}\]
-      of only `wtsp=1.298`. (#(Assuming that all weights $w_g$ are positive, smaller weight spreads indicate a more even distribution of the grid points $\vec r_g$ across the sphere surface. So, if given a choice, rules with smaller weight spreads are generally preferable)#)
-    - A residual `res` of $e\approx 10^{-32}$.
-      For export purposes, the value exported as `res` is not the final optmization residual, but rather
-      the maximum absolute error $e$ obtained as difference of the exact analytical result and the numerical integration result using the given rule, over the full set of Cartesian monomials $m_{ijk}(x,y,z)$ with $i+j+k\leq l$.
-      (#(/#all#/ of them are explicitly computed before export and $\max(\ldots)$'ed over)#)
-    The visualization of this file generated py `visualize-rule.sh ico-3-2.dat` produces the image
-    <div><img style="padding: 4px; background-color:#fff; border-color:#000; border: none; width:50%; margin-left:25%; height:auto;" src="img/ico-3-2.png" alt="ico-3-2 integration rule visualization"></div>
-    (#(the centers of the colored disks indicate the integration points $\vec r_g$ of the grid; and both the colors and sizes of the disks on the unit sphere encode the weights $w_g$ of the corresponding integration points. Concretely, the visual area of the disks is approximately equal to the area given by the integration weight $w_g$ represented by the point $r_g$ of its center. This particular rule is very good: The disks are very evenly distributed over the sphere, and have very similar represented areas. See ^#AiggArticle1#^{our article} for a full description of how to read these visualizations)#)
-
-
-    ⟨newline⟩
-    *#Comments:#*
-    - By default, `aigg` will not export grids which
-      - ...either do not integrate the current target $L$ exactly (#(this decision is based the option set for `thr-res`)#),
-      - ...or do integrate the given target $L$ exactly, but a previous grid in encountered during the current incremental optimization schedule integrated a larger $L$ exactly,
-      - ...or do integrate the given target $L$ exactly, but have a “worse” weight spread than another grid previously encountered during the current incremental optimization schedule which /#also#/ integrated this $L$ exactly.
-
-        The current weight spread is considered “worse” if either it is negative, while the previous one was not; or if both weight spreads are positive, if the current weight spread is larger than the previous one.
-      With these precautions, the last grid exported in the course of an incremental optimization schedule is typically the most reasonable one encountered in the course of the entire optimization.
-  * Types of {initial guesses}
-    - Set points on fundamental domain, and map them through the group across the sphere>#InitialGuessesSection#<{:}
-    <div><a href="img/initial-guess-concept-1-2048.png"><img style="padding: 4px; background-color:#fff; border-color:#000; border: none; width:90%; margin-left:5%; height:auto;" src="img/initial-guess-concept-1.png" alt="illustration of spreading grid points across the entire sphere surface by defining them on the fundamental domain of a polyhedron and then replicating them using the point group symmetry operations"></a></div>
-
-
-    - Hex grid
-    - Subdiv surface
-    - *#Explicit seed point lists#*:
-#+     (in terms of barycentric or Cartesian coordinates):
-      Independently of the systematic initial guesses, `aigg` may also be given an explicit list of input points to start the optimization from.
-
-      The set of input points may be given in either Cartesian coordinates or barycentric coordinates of the fundamental region, and is specified as described in the ^#RefineExistingRuleSection#^{section on refining initial grids}.
-      In the current case, one would combine this input with a ^#IncrementalScheduleSection#^{standard incremental search schedule}, rather than a schedule for a single targeted $L$.
+#+          (#In fact, these issues are prevalent enough that many users of computational chemistry software use molecular integration rules with a very high target accuracy unconditionally -- including in the majority of cases where they are not needed -- for the sole sake of /#avoiding the hassle#/ associated with such problems from the outset (basically, trading computing time for human time).
+#+          However, this practice can /#greatly#/ increase the computation time associated with a certain research task, and if better grids would prevent the need for that, a lot would be won.#)
+#+          - (*Note that also very real practical issues with integration grids may not necessarily be attributed to said grids by users of software. This is not commonly something considered from the outset.*)
+#+#+            from the outset
+#+#+          or a non-acceptable vibrational frequency calculation
+#+#+         converging or non-converging
 
 
 
-* Literature citations
+* literature citations
   - (put literature citations here)
 
   - `Link{AiggArticle1}`: #AiggArticleUrlGoesHere
