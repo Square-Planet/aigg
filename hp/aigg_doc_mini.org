@@ -1,0 +1,1538 @@
+---
+title: "`aigg` — a generator for spherical integration rules"
+---
+#+ title: "`aigg` — a program for generating spherical integration rules"
+#+ title: "the `aigg` program — a generator for spherical integration rules"
+#+ ---
+#+ title: "The aigg program -- A generator for spherical integration rules"
+#+ author:
+#+   - Gerald Knizia
+#+ date: "2026-09-08"
+#+ ---
+
+#+ <h1>The aigg program -- A generator for spherical integration rules  </h1>
+#+ :LastTitle: The aigg program -- A generator for angular integration grids
+#+ :Title: The aigg program -- A generator for angular integration grids
+
+#+ Unicode signs: http://www.fileformat.info/info/unicode/category/Sm/list.htm
+
+#+ <img style="padding: 4px; background-color:#fff; border-color:#000; border-width:1px; border-style:solid; width:78%; margin-left:10%; height:auto;" src="img/aigg-header.png" alt="aigg header">
+#+ <img style="padding: 4px; background-color:#fff; border-color:#000; border: none; width:78%; margin-left:10%; height:auto;" src="img/aigg-header.png" alt="aigg header">
+
+#+ <div style="padding: 4px; background-color:#fff; border-color:#000; border-width:1px; border-style:solid; width:78%; margin-left:10%; height:auto;"><img src="img/aigg-header.png" alt="aigg header"></div>
+
+#+ <div class="imgfloat" style="padding: 4px; background-color:#fff; border-color:#000; border-width:1px; border-style:solid; width:78%; margin-left:10%; height:auto;"><img src="img/aigg-header.png" alt="aigg header"></div>
+
+#+ <div class="imgfloat" style="padding: 4px; background-color:#fff; border-color:#000; border-width:1px; border-style:solid; width:78%; margin-left:10%; height:auto;"><img src="img/aigg-header.png" width="800" height="294" alt="aigg header"></div>
+#+ <div class="imgfloat" style="padding: 4px; background-color:#fff; border-color:#000; border-width:1px; border-style:solid"><img src="img/aigg-header.png" height="294" width="800" alt="aigg header"></div>
+#+ margin: 5px; text-align: center; padding: 4px; background-color:#999
+
+#+   * HP/FIXME
+#+  * Better control over page structure
+#+    - Page names (html files); allow specifying them.
+#+      + Maybe allow generating them from the caption of the sites?
+#+      + Would need some additional trafos.
+#+        E.g., cutting things after colons, everything to lower case, cutting things in parenthesis,
+#+        replacing spaces by underscores (or minuses), replacing HTML quotes and mathematical symbols by nothing?
+#+      + (we could raise an error if something untranslatable is encountered, and demand explicit setting of page name for this case.)
+#+      + (we could also keep track of page names already generated, and raise an error if a certain name is generated multiple times. Or simply append “v2” or similar to it. But I guess raising errors is the better idea).
+#+      + (theoretically we could also make subdirectories with higher headings. But that could get very long and confusing very quickly, and would make handling the site (e.g., uploads, etc.) much more cumbersome; better in this case: minuses for words in one level headings, and underscores for outer captions. For this site this would not be needed, but maybe for the qm lecture site?)
+#+    - Variable level of sub-pages to include in main index on main page
+#+    * Implementation ideas/comments
+#+      - We would need to specify the corresponding meta-info in the org files.
+#+        Options would include doing it in the headings themselves, or in the
+#+        first lines of the body of the headings.
+#+      - Wasn't there something about :abcdef: text? I put those on highlight in kate!
+#+        I currently cannot actually see any sort of parser for this in `org2html.py`, though...
+#+      - Note: we already had some sort of parsing thingy for the math environments (*, mt, mb, etc).
+#+        This the the thing which parsed specs like “{*:1.1}” after the closing of math environments
+#+      - There is also a `ParsePropertyList` in `org2html.py`, although appears to be very basic at the moment (no quotes, no parenthesis matching, etc; note: there Is a `FindClosingParenthesis2()` routine in the code, it is just not used here.).
+#+      - Nevertheless: Maybe some code of that could be recycled? Or upgraded?
+#+      - If a topic+link site is effectively empty, apart from a list of subsites, maybe instead include the content of the first non-empty subsite?
+#+  * Support for code examples
+#+    - Code highlighting (check if it works, and/or if need need to set up extra packagages)
+#+  * Style updates for homepage
+#+    - The monospace font in `text like this` is not quite compatible in size with the default font.
+#+      I guess this may be a “Helvetica clones have a broken size”-problem, but I might want to look into it.
+#+      Looks somewhat stupid at the moment.
+#+      - Maybe also check how code doc sites like cppref do it (i.e., what they do to get consistent font sizes for default and tt).
+#+    - Style updates (main page actually looks fine, without the boxes on the sub-pages. Maybe just remove those and leave borders white?)
+#+    - style setup for mobile devices
+#+    - icons/favicons/app icons (see template-jax.html what is required---we currently don't have any)
+#+    - check out other SEO stuff.
+#+  * Content updates
+#+    - add links to scientific article/preprint once there
+#+  * Technical updates
+#+    * Cross-references within the site
+#+      - Add command to designate link targets, and command to set links to them.
+#+        (that might require a multi-pass processing, wouldn't it? or, alternatively, a way of determining the file names already when the input file is parsed...).
+#+        (for places to fix: look up “section” in the `.org` file).
+#+
+#+      - Maybe as >#PlaceName#<{for a link target}?
+#+      - And ^#PlaceName#^{actual code to link to} for the link itself?
+#+       - or ^#PlaceName#^{actual code}?
+#+
+#+        ...would require a slightly more involved parser for these guys;
+#+        but as long as we keep it on a single line, it might not be too bad.
+#+      - UPDATE: I think `ReplaceMacro2` can already do it, as-is! It allows parsing stuff like
+#+        #+BEGIN_VERBATIM
+#+        |MacroStart|...|MacroEnd|{...}!
+#+        #+END_VERBATIM
+#+        and allows supplying a free function to define the content of the replacement.
+#+      - UPDATE: hacked it in.
+#+        I guess one could use the same mechanism for external links, too.
+#+    * Support for local and semi-local navigation structure
+#+      - E.g., pages containing indices to sub-pages (and possibly other text)
+#+      - nav links to `previous`/`next`/`upper`.
+#+
+#+        I think I saw similar ones in some online tutorials,
+#+        and/or other kinds of documentation, and found them to work quite well for long texts.
+
+
+#+ * Introduction/Overview
+#+ * Background on spherical integration rules
+#+ * Mathematical Background on Integration Rules
+#+ * Mathematical Background of Integration Rules
+* {Mathematical Background} for Integration Rules
+  * What is an &ldquo;integration rule&rdquo;?
+    >#GeneralInterationRuleSection#<{This section} outlines the general concept of a /#numerical integration rule#/.
+#+     It establishes these as a means of numerically computing numerical approximations of integrals over functions
+    It describes what an integration rule /#is#/, when and why one might need one, and some criteria which may be used to construct and derive them.
+    This is meant to provide some background in numerical techniques before getting into ^#SphericalIntegrationRuleSection#^{spherical integration rules}, which is what `aigg` (and this site) actually deals with.
+
+#+     #+TABLE_OF_CONTENTS+#{text:"Jump to:", depth:2}
+#+    #+TABLE_OF_CONTENTS+#{depth:2}
+
+    * {Approximating integrals} with a finite number of computations
+#+     abstract sense
+#+       In a conceptual sense, an _#integration rule#_ defines a way of approximating integrals of functions $f(x)$ over a specific integration domain $\Omega$ (e.g., an interval on the real axis, $\Omega=[a,b]$) by a finite series of numerical computation.
+#+       In a conceptual sense, an _#integration rule#_ defines a way of approximating integrals of functions $f(x)$ over a specific integration domain $\Omega$
+#+       (e.g., a fixed interval $[a,b]$ on the real axis)
+#+       by a finite series of numerical computations.
+      In a conceptual sense, an >#IntegrationRulesOneDimSection#<{_#integration rule#_} defines a way of approximating integrals of functions $f(x)$ over a specific integration domain $\Omega$,
+      \[ \int_\Omega f(x)\,\d x,\]
+      by a concrete finite series of numerical computations; for any function $f(x)$, it will assign a unique and well-defined numerical value as approximation to this integral.
+
+      For example, in one spatial dimension, one may choose $\Omega=[a,b]$ (i.e., a fixed interval on the real axis), and then approximate definite integrals as follows:
+#+       over functions $f(x)$
+      \[  \int_a^b f(x)\,\d x \approx \sum_{g=1}^N f(x_g)\,w_g. \]
+#+       \[  \int_\Omega f(x)\,\d x = \int_a^b f(x)\,\d x \approx \sum_{g=1}^N f(x_g) w_g. \]
+#+       Here $\Omega=[a,b]$ is an interval on the real axis.
+#+       Note that the right hand side of this equation can /#always#/ be evaluated numerically, provided we
+#+       Note that unlike the left hand side of this equation,
+#+       Computing exact analytic
+#+       Algorithms to evaluate an exact analytical result for the integral on the left hand side are only known for rather limited classes of functions $f(x)$.
+      Even in this one dimensional case,
+      for most functions $f(x)$ no algorithms are known to evaluate the left hand side integral in closed form.
+#+       analytically
+#+       ; and the problem gets much worse in more dimensions, particularly if the integration domain is irregularly shaped.
+#+       this problem is strongly compounded in case o.
+#+       even simple-looking $f(x)$ given in closed form,
+#+       , even if $f(x)$ itself is explicitly given in closed form.
+#+       For most functions $f(x)$, the left hand side integral cannot be analytically evaluated in closed form.
+#+       (unlike for taking derivatives, .
+#+       -- there are no known algorithms to do so for arbitrary combinations of anal.
+#+       (#(in contrast to taking derivatives, there are no known algorithms to compute analytic expressions for indefinite integrals for arbitrary combinations of functions)#).
+#+       -- no algorithms are known which would afford integrating
+#+       (#(in contrast to taking derivatives, there are no known algorithms which would allow computing )#).
+      However, the right hand side of this equation can /#always#/ be evaluated numerically, provided we know the $N$ pairs of values $(x_g,w_g)$ ($g\in\{1,2,\ldots,N\}$) (#(next paragraph)#) and we are able to compute the numerical value of $f(x)$ for any point $x\in[a,b]$ (in particular, for all $x=x_g$).
+#+       $f(x_g)$ for each of the points $x_g$.
+#+       This is even the case if $f(x)$ has a very complex, or even unknown(!), analytical form, as long as numerical values of the $f(x)$ can be computed in practice.
+#+       This is even the case if $f(x)$ has a very complex, or even unknown(!), analytical form, as long as numerical values of the $f(x)$ can be computed in practice.
+#+       This is not only possibly if $f(x)$ has a very complex analytical form; in fact, this even holds if we /#do not even know#/ the analytical form of the function $f(x)$ -- as long as numerical values of $f(x)$ can be computed in practice.
+#+       This case frequently occurs in application scenarios, particularly where the function $f(x)$ is itself the result of a computation.
+      This even holds /#if we do not even know#/ an analytical form of the function $f(x)$!
+#+       -- as long as numerical values of $f(x)$ can be computed in practice.
+      While at first glance this may sound contrived, this actually is a common case in practical application scenarios, particularly when the function $f(x)$ is itself the result of a computation.
+#+       While at first glance this may sound contrived, this case /#frequently#/ occurs in practical application scenarios, particularly when the function $f(x)$ is itself the result of a computation.
+#+       This case frequently occurs in application scenarios, particularly where the function $f(x)$ is itself the result of a computation.
+
+#+       the set
+      In a more formal sense, the term _#integration rule#_ concretely refers to
+      \[ \bigl\{(x_g,w_g);\,g\in\{1,\ldots,N\}\bigr\}.\]
+#+       [a,b]
+      That is: to the set of $N$ _#grid points#_ $\{x_g\}$ ($g\in\{1,\ldots,N\}$), with $x_g\in\Omega$ (aka /#ordinates#/), combined with their associated $N$ _#weights#_ $\{w_g\}$, with $w_g\in\spa{R}$ -- and the implicit understanding that the points and weights are used to approximate integrals in the sense above.
+#+       The acutal /#integration rule#/ in this case is $\{(x_g,w_g);\,g=1,\ldots,N\}$: the set of $N$ _#grid points#_ $\{x_g\}$, with $x_g\in[a,b]$ (aka /#ordinates#/), combined with their associated $N$ _#weights#_ $\{w_g\}\in\spa{R}$ -- and the implicit understanding that the points and weights are used to approximate integrals in the sense above.
+      - (#Integration rules are also commonly called _#integration grids#_ or _#quadrature rules#_ #)
+      - (#In a more abstract sense, the term /#“integration rule”#/ is also used to denote the /#algorithm#/ to determine the $\{(x_g,w_g);\,g\in\{1,2,\ldots, N\}\}$, rather than only the resulting set of points and weights itself#).
+#+       sometimes
+
+    * {Not all} integration rules are {equally good}
+      While every set of $N$ points and weights $\{(x_g,w_g)\}$ may be used to approximate integrals in the sense above,
+      whether this approximation is actually /#good#/ (or, indeed, even /#meaningful#/ at all) will of course strongly depend on where and how the $x_g\in\Omega$ and $w_g\in\spa{R}$ are chosen, combined with how the function $f(x)$ behaves on the integration domain $\Omega$.
+#+       (here: $\Omega=[a,b]$).
+#+       the interval $[a,b]$.
+
+      For example, unless the sum of weights fulfills
+      \[ \sum_{g=1}^N w_g = b-a, \]
+      the one dimensional integration rule above will not even integrate the constant function $f(x)=1$ correctly, regardless of how many points $N$ it includes in the sum!
+      For many applications such a rule would be /#terrible#/.
+      On the other hand, one may choose, for example, a set of $N$ equidistant grid points $x_g$ and uniform weights $w_g$ as
+      \[ x_g := a + (g-1/2)\cdot h \qquad w_g := h \qquad (\text{for $g\in\{1,2,\ldots,N\}$}), \]
+      where $h := (b-a)/N$ is the /#step width#/.
+      This particular rule is known as the _#midpoint rule#_,
+      and provides an (often) reasonable integration rule for finite intervals $[a,b]$.
+      In particular, it has the property that integrals over all (in a certain sense well-behaved) functions $f(x)$ on $[a,b]$ can be arbitrarily closely approximated, provided that the number of grid points $N$ is chosen high enough.
+
+#+     * Rules which exactly integrate polynomials of a given degree
+#+     * Rules with smallest number of points N which which exactly integrate polynomials of a given degree L
+    * {Making rules} by demanding {exact} integration of {polynomials}
+      However, in one spatial dimension, there are many well-known integration rules which afford formally much more efficient ways of numerically approximating such definite integrals, provided the functions $f(x)$ they are applied to are known to have certain analytical forms or properties.
+
+      In particular, so called >#GaussianQuadraturesSection#<{_#Gaussian quadrature#_ rules} are very successful and widely used.
+      In a Gaussian quadrature of order $L$, the points $\{(x_g,w_g)\}$ are determined in such a way that
+      \[ \int_a^b m_k(x)\,w(x)\,\d x = \sum_{g=1}^N m_k(x_g)\,w_g \]
+      holds /#exactly#/ for all functions
+      $m_k(x)$ ($k\in\{0,1,\ldots,L\}$) given by
+      \[ m_k(x) = x^k. \]
+      Such functions are called _#monomials#_.
+      Here $w(x)$ is a (shared) weight function which has to fulfill certain formal conditions (in particular, $w(x)>0$ for all $x\in[a,b]$) -- in the simplest case, it may be given by the uniform weight $w(x)=1$ (#(and otherwise, in many application contexts a choice of weight function $w(x)$ arises more or less naturally)#).
+
+      The conditions above mean that for the class of target functions
+      \[ t_k(x):=m_k(x)\,w(x) = x^k\,w(x) \qquad(k\in\{0,1,\ldots,L\})
+      \]
+      the numerical and analytical integrals agree /#exactly#/ -- the numerical integral is in this case not an approximation, and we have
+      \[[ \int_a^b t_k(x)\,\d x &=& \int_a^b m_k(x)\,w(x)\,\d x
+      \\ &=& \sum_{g=1}^N m_k(x_g)\,w_g
+      \\ &=& \sum_{g=1}^N \frac{t_k(x_g)}{w(x_g)}\,w_g
+      \\ &=:& \sum_{g=1}^N t_k(x_g)\,\tilde w_g\qquad\text{where $\tilde w_g := w_g/w(x_g)$}.
+      \]]
+      However, integration is a /#linear operation#/: for any numbers $\alpha,\beta\in\spa{R}$ and functions $f(x)$ and $g(x)$, we have
+      \[ \int_a^b \bigl(\alpha f(x) + \beta g(x)\bigr)\d x = \alpha  \int_a^b f(x)\,\d x + \beta  \int_a^b g(x)\,\d x.\]
+      Consequently, any integration rule which exactly integrates all target functions $t_k(x) = x^k w(x)$ with $0\leq k\leq L$ will /#automatically#/ also exactly integrate all functions $t(x)$ given by
+      \[ t(x) = P(x)\,w(x) = \sum_{k=0}^L c_k\,x^k\,w(x),\]
+      as long as the polynomial $P(x)$ has a total degree of $L$ or less:
+      \[ \int_a^b t(x)\,\d x = \sum_{g=1}^N t(x_g)\,\tilde w_g. \qquad\text{($=$, not $\approx$)}\]
+
+      So if the actual functions $f(x)$ the rules are applied to then either /#are#/ such a weighted polynomials (or, more realistically, each $f(x)$ could be well approximated by one, in a certain sense),
+      then these types of rules afford a very efficient numerical approximation of the integrals $\int_a^b f(x)\,\d x$.
+      Concretely, making /#both#/ the $N$ grid points $\{x_g\}$ and the weights $\{w_g\}$ variable allows for exactly integrating all functions $t(x)=P(x)\,w(x)$ where $P(x)$ is a polynomial of up to a total degree of $L=2N-1$ -- for larger $N$ and well-behaved functions $f(x)$, this is (formally) significantly more efficient than numerical quadrature rules employing fixed points (like the midpoint rule mentioned above, or other Newton-Cotes formulas).
+
+      The highest $L$ for which a integration rule will integrate all polynomials of degree $\leq L$ exactly is called the _#order#_ of the integration rule.
+
+#+       TODO: is $2N-1$ correct? ^#https://en.wikipedia.org/wiki/Gaussian_quadrature#^{Wikipedia} says so, but with $N=1$ (one point!) this would say the order is $L=1$, and therefore integrates  /#both#/ the constant function $f(x)=1$ and the linear function $f(x)=x$ correctly as basis functions. Exactly resolving a two-dimensional space with only one point?!
+#+       UPDATE: yes... they define this for a $[-1,1]$ integral, for which the integral $\int_{-1}^{1} c_1 x=0$. Wolfram also lists the order like that. I guess this property cannot go away by a simple translation of the integration domain, can it?
+
+    * Gaussian quadrature rules for targeted contexts
+      Such Gaussian integration rules are closely related to classes of so-called /#orthogonal polynomials#/, which are defined by the weight functions $w(x)$ and the integration domain given by $a$ and $b$ (upper and lower integration limits, of which neither necessarily has to be finite).
+      While one could, in principle, determine integration rules for just about any valid fixed combination of number of grid points $N$, weight function $w(x)$, and integral domain $[a,b]$, in general this has to be done numerically.
+
+      However, in the one-dimensional case, the term “Gaussian quadrature” is most closely associated with
+      various special classes of weight functions $w(x)$, for which closed formulas are known which allow computing the set of grid points $\{(r_g,w_g)\}$ for any given number of points $N$.
+      For example:
+      + /#Gauss-Hermite quadrature:#/ Here the integration domain is $[-\infty,\infty]$, and weight function is $w(x)=\exp(-x^2)$, such that we have
+        \[ \int_{-\infty}^{\infty} m_k(x)\,\exp(-x^2)\,\d x = \sum_{g=1}^N m_k(x_g)\,w_g \]
+        for all monomials $m_k(x)=x^k$ ($k\in\{0,1,\ldots,L\}$) and degree $L=2N-1$.
+        As explained above, this implies that for all functions $f(x)$ of the form
+        \[ f(x) = P(x)\,w(x) = \sum_{k=0}^L c_k\,x^k\exp(-x^2), \]
+        where $P(x)$ is a polynomial of degree $\leq L$, we get
+        \[ \int_{-\infty}^{\infty} f(x)\,\d x = \sum_{g=1}^N f(x_g)\,\tilde w_g \qquad\text{where}\quad \tilde w_g := \frac{w_g}{w(x_g)} \]
+        That is, for all such functions $f(x)$, the integral approximation afforded by the Gauss-Hermite integration rule is /#exact#/; and, as explained above, for functions which are not necessarily of the exact form $f(x)=P(x)\,w(x)$ given above, but which can be efficiently approximated by such functions, the rule would be expected to provide efficient approximations.
+
+        (#(Note: we distinguish $w_g$ and $\tilde w_g=w_g/w(x_g)$ because in the numerical literature, such rules are commonly written with the weight function $w(x)$ appearing separately in the lhs integral, rather than as part of $f(x)$ as explained above.)#)
+      + /#Gauss-Laguerre quadrature#/: Similar to Gauss-Hermite quadrature, but for
+        \[ \int_{0}^{\infty} m_k(x) \exp(-x)\d x = \sum_{g=1}^N m_k(x_g)\,\tilde w_g \]
+      + /#Chebychev-Gauss#/: Similar to Gauss-Hermite quadrature, but for
+        \[ \int_{-1}^{+1} \frac{m_k(x)}{\sqrt{1-x^2}}\,\d x = \sum_{g=1}^N m_k(x_g)\,\tilde w_g \qquad\text{(Type 1)}\]
+        or, alternatively,
+        \[ \int_{-1}^{+1} m_k(x) \sqrt{1-x^2}\,\d x = \sum_{g=1}^N m_k(x_g)\,\tilde w_g \qquad\text{(Type 2)}\]
+      + /#...#/(many more)/#...#/
+      For one spatial dimension, both these and large sets of other integration rules for various weight functions may be found in many standard reference works (e.g., such as the popular /#“Handbook of Mathematical Functions”#/ of
+      Abramowitz and Stegun); including formulas or algorithms for computing the actual points and weights $\{(r_g,w_g)\}$ ($g\in\{1,\ldots,N\}$) of the rules.
+
+    * Linear-algebraic interpretation of Gaussian integration rules
+      In the last two sections, we described the concept of Gaussian integration rules on intervals $[a,b]$.
+      These determine the points and weights $\{(x_g,w_g)\}$ of the integration rule
+      \[ \int_a^b f(x)\,w(x)\,\d x \approx \sum_{g=1}^N f(x_g)\,w_g  \]
+      in such a way that all functions $m_k(x)=x^k$ with $k\in\{0,1,\ldots,L\}$ are integrated /#exactly#/.
+#+       The functions $m_k:\mathbb{C}\rightarrow\mathbb{C}$ defined by
+      The functions $m_k:\mathbb{C}\rightarrow\mathbb{C}$ defined by
+      \[ m_k(x):=x^k \qquad\text{(for $k\in\{0,1,2,3,\ldots\}$)}\]
+      are called _#monomials#_.
+      - (#The monomials may be transparently restricted to smaller domains and ranges than the full $\mathbb{C}\rightarrow \mathbb{C}$. What defines $m_k$ is the functional form mapping any argument $x$ to its $k\in\spa{N}_0$'th power $x^k$.#)
+      - (#Concretely, the $m_k(x)=x^k$ denote /#Cartesian monomials#/ in /#one#/ space dimension.#)
+      - (#We will prominently work with monomials $m_{ijk}(\vec r) = x^i y^j z^k$ of three-dimensional space when dealing with spherical integration rules.
+        Most prior and upcoming definitions and results translate almost unchanged to this situation.#)
+      While this is not their origin, the construction of this class of integration rules is maybe most easily interpreted in a context of >#IntegrationRulesAndLinearAlgebraSection#<{linear algebra}:
+
+#+       While originating from analysis,  can probably be most easily interpreted in a context of linear algebra.
+#+       While this is not their origin,
+      - Note that, subject to some conditions on the weight function $w(x)$ (in particular $w(x)\in\spa{R}$ and $w(x)> 0$), the expression
+        \[ \braket{f,g} := \int_a^b f(x)^* g(x)\,w(x)\,\d x \]
+        may be seen to fulfill the axioms of an ^#https://en.wikipedia.org/wiki/Inner_product_space#Definition#^{_#inner product#_} on the (function) space of square integrable functions on $[a,b]$ (i.e., functions $f(x):[a,b]\rightarrow\spa{C}$ for which $\braket{f,f}$ is finite).
+
+        Of particular relevance is the space associated with uniform weight ($w(x)=1$), which is commonly called _#$L_2([a,b],\mathbb{C})$#_, and consists of all functions on $[a,b]$ for which the following integral is well defined and finite:
+        \[ \braket{f,f} = \int_a^b \abs{f(x)}^2\,\d x \leq \infty. \]
+        (#(some technical details of little relevance to our cause were/are/will be omitted)#)
+#+         (#(technically, for it to be called $L_2$ specifically, one must employ the Lebesgue definition of the integral; this is of no consequence to our cause, similarly to how $w(x)$ may still be zero on sets of measure zero and still fulfill the axioms.#)
+#+          Additionally, we call functions $f(x)$, although, technically, only $f$ is the function and $f(x)$ is only its value on point $x$...)
+#+       \[  L_2([a,b],\mathbb{C}) := \{  \}  \]
+
+      - In this space, one may view a monomial $m_k(x)=x^k$ as a >#MonomialsAsL2BasisVectorsSection#<{(function-)/#vector#/}.
+        In fact, one can show that the monomials $[m_0,m_1,m_2,\ldots]$ form a so-called ^#https://en.wikipedia.org/wiki/Schauder_basis#^{(Schauder)-basis} of the space of square-integrable functions $L_2([a,b],\spa{C})$.
+
+#+         Effectively, this means that any square integrable function $f(x)$ can be approximated as closely as desired by an expression
+#+         \[ \tilde f(x) = \sum_{k=0}^L c_k m_k(x).\]
+#+         That $[x^0,x^1,x^2,x^3,\ldots]$ forms a basis of $L_2([a,b],\spa{C})$ effectively
+        That $[m_0,m_1,m_2,\ldots]$ forms a basis of $L_2([a,b],\spa{C})$ effectively
+#+         That the monomials
+        means that any square integrable function $f\in L_2([a,b],\spa{C})$ can be approximated as closely as desired as a /#linear combination of a finite number of monomials#/; that is, by an expression
+        \[ \tilde f(x) = \sum_{k=0}^L c_k\,m_k(x),\]
+        where $L$ is a finite integer and the $\{c_k;\,k\in\{0,1,\ldots,L\}\}$ denote the _#expansion coefficients#_ of $f$ in terms of the basis vectors $\{m_0, m_1,\ldots,m_L\}$.
+
+#+       - Effectively, that $[x^0,x^1,x^2,x^3,\ldots]$ forms a basis on $L_2([a,b],\spa{C})$
+#+ #+         That the monomials
+#+         means that any square integrable function $f(x)\in L_2([a,b],\spa{C})$ can be approximated as closely as desired as a /#linear combination of a finite number of monomials#/; that is, by an expression
+#+         \[ \tilde f(x) = \sum_{k=0}^L c_k m_k(x).\]
+  #+       in this sense means that
+#+       - Hereby /#“approximate as closely as desired”#/ concretely means that for any $\epsilon>0$, one can find a finite $L$ (=upper bound on the monomial degree) and a set of expansion coefficients $\{c_0,c_1,\ldots, c_L\}$ such that
+      - Hereby /#“approximate as closely as desired”#/ concretely means that for any $\epsilon>0$, one can find a finite $L$ and a set of $\{c_0,c_1,\ldots, c_L\}$ such that
+        \[ \int_a^b \left\vert f(x) - \tilde f(x)\right\vert^2\d x < \epsilon^2. \]
+        So for any maximum root mean square (rms) deviation $\epsilon>0$ one is comfortable with, one may find a finite expansion $\tilde f$ of $f$ in terms of monomials, such that $\tilde f$ lies closer than $\epsilon$ to $f$ in the vector space sense:
+        \[ \norm{f-\tilde f} = \sqrt{\braket{f-\tilde f, f-\tilde f}} < \epsilon.\]
+
+      - So for any $f$ one may find an expansion in monomials which approximates is to a given accuracy $\epsilon$ (in the described least-squares sense).
+  
+      One may also ask conversely: if we are given a set of monomials $[m_0,m_1,m_2,\ldots,m_L]$,
+      which kinds of functions $f$ can they >#TaylorSeriesAndMonomialsSection#<{efficiently approximate}? And for which kinds of functions should we expect problems?
+      For well behaved smooth functions this can be answered as follows:
+      A function $f(x)$ is called _#“analytic”#_ if it can be represented by its Taylor series:
+      \[ f(x_0 + \delta x) = f(x_0) + \sum_{i=0}^\infty \frac{f^{(i)}(x_0)}{i!} \delta x^i, \]
+      where $f^{(i)}(x_0)$ denotes the $i$'th derivative of the function $f(x)$ evaluated at point $x=x_0$.
+      An integration rule of order $L$ will therefore
+      - TODO: _#(quicker varying, local features of higher frequency, etc)#_
+
+
+      If used in this approximation sense, a set of monomials $[x^0,x^1,x^2,x^3,\ldots]$ can resolve many local features of an input function accurate, which a lesser set cannot necessarily do.
+      So the monomials can be argued to provide a hierarchy of increasingly “less” simple functions, which with increasing size, can systematically resolve more and more complicated functions accurately.
+
+
+#+       _#converse sense: given a set of monomials; now: what *can* they approximate, and what can they not?#_
+#+       If used in this approximation sense, a set of monomials $[x^0,x^1,x^2,x^3,\ldots]$ can resolve many local features of an input function accurate, which a lesser set cannot necessarily do.
+#+       So the monomials can be argued to provide a hierarchy of increasingly “less” simple functions, which with increasing size, can systematically resolve more and more complicated functions accurately.
+
+
+      (#Some further technical comments:#)
+      - (#Note that the described /#“approximate to any desired $\epsilon>0$”#/ condition is not only an abstract property.
+#+           Rather, the set of $N=L+1$ coefficients $\{c_k;\,k\in\{0,1,\ldots,L\}\}$ which realizes the approximation $\tilde f$ of $f$ in this leasts squares sense, namely
+        Rather, the set of $N=L+1$ coefficients $\{c_k;\,k\in\{0,1,\ldots,L\}\}$ of $\tilde f$ in
+        \[ \tilde f(x) = \sum_{k=0}^L c_k m_k(x),\]
+        which realizes the least square deviation of $f$ and $\tilde f$ in this sense, namely
+        \[ \braket{f-\tilde f, f-\tilde f} = \int_a^b \left\vert f(x) - \tilde f(x)\right\vert^2\d x \longrightarrow \text{min}, \]
+        can be /#directly calculated#/.
+        Concretely, a simple calculation yields
+        \[ c_k = \sum_{j=0}^L S^{kj} \braket{m_j, f},  \]
+        where $S^{kj} := [\mat S^{-1}]^{kj}$ denote the elements of the inverse overlap matrix; this is the inverse of the $(N,N)$-shape overlap matrix $\mat S$, defined by its elements
+        \[ S_{kj} = \braket{m_k, m_j}. \]
+        #)
+
+        (#(In fact, this construction does not actually depend on the functions $m_k$ being monomials, or having any other specific functional form.
+        Technically speaking, the given expression will construct the projection of $f$ onto the linear subspace spanned by the $\{m_k\}$, and will thereby find the least-squares approximation $\tilde f$ of $f$ (in the sense implied by the used inner product definition) to /#any#/ given set of functions $\{m_k\}$, as long as it is linearly independent [...and if a pseudo-inverse is used to make $\mat S^{-1}$ from $\mat S$, not even linear independence is strictly required].)#)
+      - Unlike in this text, Gaussian integration rules are typically discussed in relation to series of /#orthogonal polynomials#/, rather than in terms of the monomials $m_k(x)=x^k$ themselves.
+        (#[We focus on monomials because we consider the monomial treatment as more transparent: whether or not the target functions are orthonormal is really of no consequence to the /#definition#/ of the criteria characterizing the Gaussian integration rules, although for various reasons orthogonal basis sets of the target function space may still be desirable in practice. In `aigg`, we typically employ target spaces spanned by sets of non-orthogonal functions, which are then treated in a bi-orthogonal formulation]#)
+        However, in any case, the corresponding orthonormal polynomials $\{p_k(x);\,k\in\{0,1,\ldots,L\}\}$ can be straight-forwardly determined by incrementally orthogonalizing the monomials in $\{m_k(x);\,k\in\{0,1,\ldots,L\}\}$ against each other, starting at $m_0=1$:
+        \[[ \tilde p_k(x) &:=& m_k(x) - \sum_{i=0}^{k-1} p_i(x) \braket{p_i, m_k}
+        \\  p_k(x) &:=& \frac{\tilde p_k(x)}{\sqrt{\braket{\tilde p_k, \tilde p_k}}}
+        \]]
+        (this process is known as ^#https://mathworld.wolfram.com/Gram-SchmidtOrthonormalization.html#^{Schmidt orthogonalization})
+
+#+         to the list of monomials $\{m_k(x);\,k\in\{0,1,\ldots,L\}\}$, starting at $m_0=1$:
+
+
+
+
+
+#+       We have argued that such Gaussian integration rules, which integrate a given set of simple smooth functions (functions $x^k$) exactly on the interval $[a,b]$.
+#+
+#+       In 1D, the monomials provide a hierarchy of increasingly “less” simple functions.
+#+         A set of monomials $[x^0,x^1,x^2,x^3,\ldots]$ can resolve many local features of an input function, which a lesser set cannot do.
+
+
+
+#+       While originating from analysis, these treatments probably be most easily interpreted in a context of linear algebra.
+#+
+#+       Concretely, (#(subject to some conditions on the weight function $w(x)$; in particular $w(x)>0$)#) the expression
+#+       \[ \braket{f,g} := \int_a^b f(x)^* g(x)\,\d x \]
+#+       may be seen to define an _#inner product#_ on the (function) space of square integrable functions on $[a,b]$ (i.e., functions $f(x)$ for which $\braket{f,f}$ is finite).
+#+ #+       \[  L_2([a,b],\mathbb{C}) := \{  \}  \]
+#+
+#+ #+       While the the investigation of such rules and the associated series of orthogonal polynomials often originated in the field of analysis, several core aspects of this treatment of integration are either linear algebraic or fun
+#+
+#+       In this space, one may see a monomial $m_k(x)$ as a /#vector#/.
+#+
+#+       Gaussian integration rules, which integrate a given set of simple smooth functions (functions $x^k$) exactly on the interval $[a,b]$. In 1D, the monomials provide a hierarchy of increasingly “less” simple functions.
+#+         A set of monomials $[x^0,x^1,x^2,x^3,\ldots]$ can resolve many local features of an input function, which a lesser set cannot do.
+#+
+#+ #+         In particular, the set of monomials $M_{0,L}:=[x^0,x^1,\ldots,x^L]$ forms a (Hilbert)-basis of the function space $L_2([a,b],\spa{R})$.
+#+         In particular, monomials $[x^0,x^1,\ldots]$ form a ^#https://en.wikipedia.org/wiki/Schauder_basis#^{(Schauder)-basis} of the function space $L_2([a,b],\spa{R})$, the space of square-integrable functions.
+#+         This, effectively, means that any square integrable function $f(x)$ can be approximated as closely as desired by an expression
+#+         \[ \tilde f(x) = \sum_{k=0}^L c_k x^k.\]
+#+         “Approximate as closely as desired” in this sense means that for any $\epsilon>0$, one can find a maximum monomial degree $l$, such that with a set of suitable coefficients $\{c_0,c_1,\ldots, c_L\}$ one obtains
+#+         \[ \int_a^b \left\vert f(x) - \tilde f(x)\right\vert^2\d x < \epsilon^2. \]
+
+
+#+     * Generalization of integration rules to higher dimensions
+    * Integration rules in higher dimensions
+      The idea of approximating integrals by such finite sums can be readily generalized to more involved cases.
+      For example, rather than integrating just over intervals $[a,b]$ on the real axis, on may wish to integrate functions $f(\vec r)$ over integration domains $\Omega$ given by more complex manifolds (e.g., the surface of the three-dimensional unit sphere, which is a two-dimensional subset of $\spa{R}^3$).
+      
+      Also, one may again want to apply a non-uniform weight $w(\vec r)>0$ to different points $\vec r\in \Omega$ on the manifold $\Omega$ defining our integration domain.
+
+      >#IntegrationRulesHigherDimSection#<{In this case,} one may simply replace the ^#IntegrationRulesOneDimSection#^{1D integration rule above} by
+      \[ \int_\Omega f(\vec r)\,w(\vec r)\,\d\Omega \approx \sum_g f(\vec r_g)\,w_g.\]
+      In this, $N$ is again the number of _#grid points#_ $\vec r_g$ ($g\in\{1,2,\ldots,N\}$), on which the function $f(\vec r)$ is explicitly evaluated to form the approximate integral on the rhs.
+      The only formal difference is that the grid points $\vec r_g\in\Omega$ are now part of a (possibly multi-dimensional) manifold $\Omega$ (e.g., a subset of some $\spa{R}^D$).
+      As in the case of one-dimensional quadratures before, the
+#+       $\{w_g;\,g\in\{1,2,\ldots,N\}\}$
+      $w_g\in\spa{R}$ ($g\in\{1,2,\ldots,N\}$) denote the _#grid weights#_ associated with each point $r_g$, while the function $w(\vec r)$ (not to be confused with the grid weights $w_g$) denotes a _#weight function#_, which assigns to every points $\vec r\in \Omega$ a non-negative weight $w(\vec r)\in(0,\infty)$ (#(and, ^#GaussianQuadraturesSection#^{also as before}, the function $w(\vec r)$ is typcally chosen by a user, and which one to choose often arises naturally from the context of a given application. The simplest possible choice is a uniform weight $w(\vec r)=1$)#).
+
+      This more general formula reduces to the formula discussed in one dimensional case if $\Omega$ is chosen as the real interval $[a,b]$ and the weight function is chosen as $w(x)=1$ uniformly.
+
+    * Gaussian integration rules in higher dimensions?
+      As we have ^#IntegrationRulesHigherDimSection#^{just seen}, this core idea of defining what an integration rule /#is#/ readily generalizes
+      ^#IntegrationRulesOneDimSection#^{from intervals $[a,b]$ in one spatial dimension}
+      to general $D$-dimensional manifolds $\Omega\subset \spa{R}^D$
+      (#(and technically, the integration domains $\Omega$
+      ^#https://en.wikipedia.org/wiki/Differentiable_manifold#^{do not even have to be given as a subset of $\spa{R}^D$};
+      However, in practice they often are, and in also theory they always ^#https://en.wikipedia.org/wiki/Whitney_embedding_theorem#^{can at least be embedded} into some $\spa{R}^D$)#).
+      
+      ⟨newline⟩
+      However, one question which does /#not#/ generalize straight-forwardly is:
+      ⟨newline⟩
+      > How can Gaussian integration rules be generalized?
+      ⟨newline⟩
+      For this concept to be applicable, it must be possible to define a special class of simple, natural “basic functions” on the domain $\Omega$, which replace the monomials $m_k(x)$/polynomials of Gaussian integration rules, and for which integration accuracy must have similar implications as in the 1D case---optimally a way of allowing systematic series expansions of generic functions $f(\vec r)$ in terms of the basic functions.
+
+      There is no obvious and practical choice of such basic functions for general integration domains $\Omega$.
+      But for several special integration domains of high symmetry and either flat or simple topology (represented by the weight function $w(\vec r)$), this generalization is possible.
+      In particular, the concept can be well defined for /#integration on the unit sphere#/, $\Omega=\spa{S}_2\subset \spa{R}^3$.
+      This is the topic of the ^#SphericalIntegrationRuleSection#^{next section}, which provides background on what exactly `aigg` optimizes, and why.
+
+#+       - _#probably delete this section, and treat only spherical ones under separate heading#_
+#+       ...
+#+       (#(different classes of polynomials? Or just say that the spherical rules we are concerned with can be seen as Gaussian quadratures with either $\Omega=\spa{R}^3$ and $w(\vec r)=\delta(\norm{\vec r}-1)$ or, alternatively, $\Omega=\{\vec r;\,r_x^2+r_y^2+r_z^2=1\}$ combined with $w(
+#+       \vec r)=1$; or the angle interpretation with spherical harmonics (either in spherical coordinates (with $(\theta,\phi)$) or Cartesian coordinates). All conditions can be shown to be equivalent (see our article, which discusses these aspects).)#)
+
+  * What is a &ldquo;{spherical integration} rule&rdquo;?
+#+     In the last section, we described the general concept of integration rules.
+    In the ^#GeneralInterationRuleSection#^{last section}, we described the general concept of integration rules, and general criteria of how to construct them.
+    >#SphericalIntegrationRuleSection#<{Here} we describe the rules for the special context of /#spherical integration rules#/, which is what `aigg` and this site are actually concerned with.
+
+#+    #+TABLE_OF_CONTENTS+#{depth:2}
+
+    * Unit sphere vs. unit ball
+      >#SpheresAndBallsSection#<{First, what is a /#sphere#/?}
+      In mathematics, a ^#https://en.wikipedia.org/wiki/N-sphere#^{_#sphere#_ of radius} $r\geq 0$ around a center $\vec c$ is the set of points
+      \[ \{ \vec r: d(\vec r, \vec c) = r\}, \]
+      where the function $d(\vec r, \vec c)$ denotes the distance between any two points.
+      Note that the sphere is defined with “$\ldots = r$”, not with “$\ldots \leq r$”!
+      It has no interior points.
+
+      Formally, the concept of a /#sphere#/ is well defined for any /#metric space#/.
+      However, we will only concern ourselves with spheres in 3D space (#(which are two-dimensional objects!)#) and with $d$ denoting the well-known Euclidian distance between two points:
+      \[ d(\vec p, \vec q) = \sqrt{(p_x-q_x)^2 + (p_y-q_y)^2 + (p_z - q_z)^2}. \]
+      In particular, `aigg` computes integration rules for the two-dimensional _#unit sphere#_ $\spa{S}_2$, which is the set of three-dimensional points $\vec r=(x,y,z)\in\spa{R}^3$ with unit distance from the coordinate origin:
+      \[ \spa{S}_2 := \bigl\{ (x,y,z)\in\mathbb{R}^3: \sqrt{x^2 + y^2 + z^2}=1 \bigr\}. \]
+
+
+#+         While the concept is well defined for any so called “metric space”, we here deal only with the unit sphere
+
+#+         That is, the set of points with a distance $\norm{\vec r} = d$ from the coordinate origin.
+#+         While the concept can be defined
+
+#+         Notes:
+#+         - In mathematics, a ^#https://en.wikipedia.org/wiki/Ball_(mathematics)#^{_#sphere#_ of radius} $r\geq 0$ around a center $\vec c$ is the set of points
+#+           \[ \{ \vec r: d(\vec r, \vec c) = r\}, \]
+#+           where the function $d(\vec r, \vec c)$ denotes the distance between any two points.
+#+           The concept is well defined for any /#metric space#/, but we
+#+         Please note specifically:
+      Please note specifically that, unlike in everyday life, the term /#“sphere”#/ in this mathematical context always *#refers to the surface of the sphere exclusively#*, and does not include any points /#inside#/ the sphere! The object which describes the points /#enclosed#/ by a sphere is called a ^#https://en.wikipedia.org/wiki/Ball_(mathematics)#^{_#ball#_} (which can be open or closed, depending on whether the sphere surface itself is included, too); however, all material on this site is concerned with spheres only, not balls.
+
+
+    * {Integration} of functions {on the} unit {sphere}
+      In some application problems, we have to work with functions $f(x,y,z)$ which are only defined for (or meaningful for, or for other reasons restricted to) arguments $(x,y,z)$ which lie on the unit sphere $\spa{S}_2$, and for which integrals over the unit sphere need to be numerically calculated.
+      This constellation may sound purely academic at first, and it is indeed not /#common#/ -- but there is a number of /#very important#/ real-world problems in which exactly this process is critial, both in terms of accuracy and stability requirements and computational time.
+      ⟨newline⟩
+      ⟨newline⟩
+
+      The most important application of this (which is also what `aigg` was designed for) happens in the context of /#quantum chemistry#/, where it is used in building the molecular integration grids lying at the numerical core of the /#great majority#/ of calculations of properties of molecules and chemical reactions (#(and not that long ago, such quantum chemical calculations occupied a major fraction of the international high-performance computing centers!)#). We describe this in more detail in the ^#MolecularIntegrationGridSection#^{DFT section}, which also provides some indications of how, why, and where these spherical integrations occur, and why one could possibly want or need a full set of spherical integration rules with orders from $L=2$ to $L=100$ as we ^#TabulatedAngularIntegrationGridLibrariesSection#^{provide here}.
+
+      ⟨newline⟩
+      ⟨newline⟩
+      So, what is a /#“spherical integration rule”#/ (aka: an /#angular integration grid#/)?
+      It is just an integration grid in the sense described ^#IntegrationRulesHigherDimSection#^{earlier}, which allows for approximating integrals over functions defined on the unit sphere $\spa{S}_2$.
+      Concretely, it is a set of $N$ grid points and weights $\{(\vec r_g,w_g);\,g\in\{1,2,\ldots,N\}\}$ (with each grid point $\vec r_g$ itself lying on the unit sphere), combined with the implicit understanding that the points and weights are used with the following finite approximation of integrals:
+      \[ \int_{\spa{S}_2} f(\vec r)\,\d\Omega \approx \sum_{g=1}^N f(\vec r_g)\,w_g.
+      \]
+      The left hand side integral hereby only involves the sphere surface itself; the $\spa{R}^3$ vector $\vec r$ used as integration variable never leaves the unit sphere in this case.
+      A common way to ensure this, as well a as common way of describing functions which are defined only on the sphere (surface), is to introduce ^#https://en.wikipedia.org/wiki/Spherical_coordinate_system#^{spherical coordinates} $(\theta,\phi,r)$, which are related to the Cartesian coordinates by
+      \[[ x &=& r \sin(\theta) \cos(\phi)
+      \\  y &=& r \sin(\theta) \sin(\phi)
+      \\  z &=& r \cos(\theta).
+      \]]
+      Here $\phi\in[0,2\pi]$, $\theta\in[0,\pi]$ and the radial coordinate $r$ is redundant, because for $(x,y,z)\in\spa{S}_2$, it is uniformly $r=1$.
+      Therefore both points on the unit sphere, and the corresponding integrations (especially analytical ones), are also commonly described in terms of $(\theta,\phi)$ coordinates only, rather than in terms of $(x,y,z)$ coordinates restricted to $x^2+y^2+z^2=1$.
+
+      When writing integrations, we have to take into account the non-linearity of the spherical to Cartesian coordinate transformation, which requires a transformation of the Cartesian volume elemement $\d x\,\d y\,\d z$ over flat space $\spa{R}^3$ into a coordinate-dependent volume element as follows:
+#+       which yield a transformed volume element of
+      \[ \d^3 \vec r = \d x\,\d y\,\d z = r^2 \sin(\theta)\,\d r\,\d\phi\,\d \theta. \]
+      (#(This comes from the ^#https://en.wikipedia.org/wiki/Volume_element#^{determinant of the Jacobi matrix of the transformation} $(r,\theta,\phi)\rightarrow(x,y,z)$)#).
+      Using this volume element, and inserting the transformation formulas above for $f(\vec r)=f(x,y,z)$,
+      one may then explicitly write the analytical spherical integration from above as follows:
+      \[ \int_{\spa{S}_2} f(\vec r)\,\d\Omega = \int_{0}^\pi\int_0^{2\pi} f\bigl(\sin(\theta) \cos(\phi),\,\sin(\theta) \sin(\phi),\,\cos(\theta) \bigr)\sin(\theta)\,\d\phi\,\d\theta \]
+#+       \[ \int_{\spa{S}_2} f(\vec r)\d\Omega = \int_{0}^\pi\int_0^{2\pi} f(x=\sin(\theta) \cos(\phi),y=\sin(\theta) \sin(\phi), z=\cos(\theta) )\sin(\theta)\,\d\phi\,\d\theta \]
+      In the case that $f(x,y,z)$ can be evaluated in terms of the angles $f(\theta,\phi)$ directly, this simplifies to
+      \[ \int_{\spa{S}_2} f(\vec r)\,\d\Omega = \int_{0}^\pi\int_0^{2\pi} f(\theta,\phi)\sin(\theta)\,\d\phi\,\d\theta.
+      \]
+      Note that in either case, the two dimensional integration over the manifold $\Omega=\spa{S}_2\subset \spa{R}^3$ is replaced two /#separated one-dimensional integrations#/ over $\theta$ and $\phi$ indiviually.
+      This is formally a significant simplification.
+
+      The price one has to pay for that  is that the description of space is no longer rotationally invariant: there is now one direction in space, the $z$ axis, which is explicitly chosen by a user and treated differently from the other two.
+      This is no issue as long as all calculations are done exactly; however, in numerical treatments, there are always approximations, and an artifical unbalanced treatment of different directions in space (as would result from approximating the $\theta$ and $\phi$ integrations independently of each other), can lead to calculation artifacts, as well as to reduced calculation efficiency.
+      A central motive of the integration rules considered on this site is therefore the circumvention (or at least reduction) this problem by making them as rotationally invariant (i.e., as uniform in their treatment of space directions) as possible with a fixed finite number of numerical calculations -- this is why we construct integration rules of polyhedral symmetry, with nonlinear numerical optimizations, based on the described theory, rather than just using the indicated formula in terms of spherical coordinates.
+
+
+#+       * Alternative views of integration over the sphere
+#+         - Integration over the “sphere” always denotes integration over the *#surface#* of the sphere (the inside is not part of the ^#SpheresAndBallsSection#^{sphere}, it is part of a ^#SpheresAndBallsSection#^{ball}).
+#+         - First, assume the function $f$ we mean to treat actually *#is#* defined on all of 3D space, but we only want to integrate a spherical slice of it (#(that is not necessarily a given; it could be possible that simply no values are assigned to the function outside of a single radius)#)
+#+         - 3D integral in spherical coordinates.
+#+           Parameterization of the surface integral of the sphere.
+#+           Volume element term takes care of coordinate transformation from the coordinates directly representing the isotropic Cartesian space to the spherical coordinates.
+#+         - 2D manifold integrals
+#+         - 2D separable Cartesian grid... with weights (spherical coordinates)
+#+         - 3D R3 integral with delta.
+    * The &ldquo;order&rdquo; of a spherical rule
+      >#SphericalOrderSection#<{_#Order#_} is a central concept in the discussion of integration rules.
+      For spherical integration rules it characterizes:
+      ⟨newline⟩
+      > How “spherically non-uniform” can a function $f(\vec r)$ maximally be which the integration rule can still treat accurately?
+      ⟨newline⟩
+      This idea can be quantified and visualized, and we will do so in this section when we discuss the representation of the least spherical “function” one could possibly imagine in terms of finite-order spherical expansions: the Dirac delta distribution (see below).
+
+#+       In short,
+      ⟨newline⟩
+      ⟨newline⟩
+      As a short summary, the order is meant to provide a simple and numerical quantity which can be used for /#distinguishing the quality and accuracy#/ of an integration rule (#(order is not the only criterium of influence for this, but it is a core criterium)#). But to do so, we need a formal definition. How would this be approached?
+
+#+       - Distinguishing the quality and accuracy of an integration rule:
+#+         - How “non spherically uniform” can a certain function $f(\vec r)$ be such that the integration rule can still accurately treat it?
+#+         - Compare to 1D section on monomials on $[a,b]$.
+#+       - In 1D section: Gaussian integration rules, which integrate a given set of simple smooth functions (functions $x^k$) exactly on the interval $[a,b]$. In 1D, the monomials provide a hierarchy of increasingly “less” simple functions.
+#+         A set of monomials $[x^0,x^1,x^2,x^3,\ldots]$ can resolve many local features of an input function, which a lesser set cannot do.
+#+
+#+ #+         In particular, the set of monomials $M_{0,L}:=[x^0,x^1,\ldots,x^L]$ forms a (Hilbert)-basis of the function space $L_2([a,b],\spa{R})$.
+#+         In particular, monomials $[x^0,x^1,\ldots]$ form a ^#https://en.wikipedia.org/wiki/Schauder_basis#^{(Schauder)-basis} of the function space $L_2([a,b],\spa{R})$, the space of square-integrable functions.
+#+         This, effectively, means that any square integrable function $f(x)$ can be approximated as closely as desired by an expression
+#+         \[ \tilde f(x) = \sum_{k=0}^L c_k x^k.\]
+#+         “Approximate as closely as desired” in this sense means that for any $\epsilon>0$, one can find a maximum monomial degree $l$, such that with a set of suitable coefficients $\{c_0,c_1,\ldots, c_L\}$ one obtains
+#+         \[ \int_a^b \left\vert f(x) - \tilde f(x)\right\vert^2\d x < \epsilon^2. \]
+
+#+         this means that for any given function $f(x)$, one can find a set of coefficients $\{c_0,c_1,\ldots, c_k\}$ such that for any $\epsilon>0$, one can find a $k$ with
+
+      In the ^#GaussianQuadraturesSection#^{case of one-dimensional functions} on an interval $[a,b]$, we defined the order $L$ an integration rule as the highest integer $L$ for which all monomials $m_k(x)=x^k$ on $[a,b]$ can be treated /#exactly#/ by the integration rule.
+      Because this also defines how many terms of the ^#TaylorSeriesAndMonomialsSection#^{series expansion of arbitrary analytic functions} the rule will treat exactly, this also characterizes how powerful an integration rule is in providing reasonable approximations to different classes of smooth functions which are not themselves polynomials.
+
+      To define a similar concept for spherical integration, we need a replacement for the sets of monomials $m_k(x)$ on $[a,b]$ -- a set of (hopefully) simple functions which can be systematically extended, and which optimally also has similar formal analytic properties of allowing for series expansions of arbitary functions defined on the sphere.
+
+      * Spherical harmonics
+        For functions on the unit sphere, a corresponding set of irreducible /#“simple functions”#/ is given by the so-called _#spherical harmonics#_.
+        These are complex functions defined /#only#/ on the unit sphere, which in this context is typically expressed by the spherical coordinates $\theta$, and $\phi$.
+        The spherical harmonics carry two indices: $l\in\{0,1,2,\ldots\}$ denotes the shell index, and within each shell, there are $2l+1$ components indexed by $m\in\{-l,-(l-1),\ldots,(l-1),l\}$).
+        One (of several) concrete definitions for the $Y_{lm}$ is:
+  #+         \[ Y_{lm}(\theta,\phi) = \qquad\text{(for $l\in\{0,1,2,\ldots\}$, and $m\in\{-l,(-l+1),\ldots,(l-1),l\}$)}\]
+        \[ Y_{lm}(\theta,\phi) = (-1)^m \sqrt{\frac{(2l+1)}{4\pi}\frac{(l-m)!}{(l+m)!}}\,P_{lm}\bigl(\cos(\theta)\bigr) e^{\ii m \phi}\]
+        where $P_{lm}(z)$ denote the so-called /#“associated Legendre polynomials”#/ (#(...which are not necessarily polynomials)#).
+  #+         (some formula, link to Wikipedia)
+        The detailed meaning of this definition is not of consequence (we will not use it, see below).
+        What is important, however, are the following properties of the spherical harmonics:
+        - Like the monomials on $[a,b]$ intervals, the spherical harmonics ^#https://en.wikipedia.org/wiki/Spherical_harmonics#Spherical_harmonics_expansion#^{can be used to expand} square integrable functions $f(\theta,\phi)$ defined on the sphere arbitrarily closely: For any desired maximum rms deviation $\epsilon>0$, there is an integer $L\geq 0$ and a set of expansion coefficients $c_{lm}$, >#SphericalSeriesExpansionFormal#<{such that} for
+          \[ \tilde f(\theta,\phi) = \sum_{l=0}^L\sum_{m=-l}^{l} c_{lm} Y_{lm}(\theta,\phi) \]
+          we obtain
+          \[ \int_{0}^{\pi} \int_{0}^{2\pi} \left\vert f(\theta,\phi) - \tilde f(\theta,\phi)\right\vert^2  \sin(\theta)\,\d\theta\,\d\phi < \epsilon^2. \]
+          (#(Furthermore, the $Y_{lm}$ as defined here are an orthonormal function systems (unlike the raw monomials on $[a,b]$ we used), which affords a simple closed-form expression for the coefficients $\{c_{lm}\}$ which yield the smallest square deviation in the expression above:
+          \[ c_{lm} =  \int_{0}^{\pi} \int_{0}^{2\pi} \bigl(Y_{lm}(\theta,\phi)\bigr)^* f(\theta,\phi)\,\sin(\theta)\,\d\theta\,\d\phi. \]
+          For the non-orthogonal monomials, the corresponding expressions would require additional transformations involving the monomial overlap matrix)#)
+  #+           one would need to either orthogonalize them, or include an inverse overlap matrix here
+        - For any fixed $l\in\{0,1,2,\ldots\}$, the expansion coefficients $\{c_{lm};m\in\{-l,\ldots,l\}\}$ of the $2l+1$ functions $\{Y_{l,-l}, \ldots, Y_{l,+l}\}$ of this $l$-_#shell#_ transform only amongst themselves if the coordinate system of the sphere is rotated in space.
+        - Both aspects combined imply that the spherical harmonics provide a systematic way of representing increasingly more general functions defined on the unit sphere in terms of sets of functions
+          \[ \bigl\{Y_{lm}(\theta,\phi);\, l\in\{0,1,\ldots,L\},\; m\in\{-l,\ldots,l\} \bigr\},\]
+          by increasing the total degree $L$ used in the expansion (designating the number of shells, $N=L+1$).
+  #+         of the space of functions which are representable in terms of them
+  #+           That means
+  #+         The Each additional /#shell#/ of
+
+      * Order from spherical harmonics
+        Combined, the listed properties of spherical harmonics imply a natural definition of the _#order of a spherical integration rule#_ as follows:
+        ⟨newline⟩
+        > The order $L$ of spherical integration rule $\{(\vec r_g,w_g)\}$ is defined as the largest integer $L$ for which it integrates all spherical harmonics $Y_{lm}$ with $l\in\{0,1,\ldots,L\}\leq L$ (i.e., with $l\leq L$) and all $m\in\{-l,-(l-1),\ldots,(l-1),l\}$ (i.e., with $-l\leq m\leq l$) ***exactly***:
+        > \[ \forall l\leq L,\;\forall -l\leq m \leq l:\quad\int_{\spa{S}_2} Y_{lm}(\theta,\phi)\,\d\Omega = \sum_{g=1}^N Y_{lm}(\theta_g, \phi_g)\,w_g.
+        > \]
+        > In this, $\theta_g$ and $\phi_g$ denote the angles of $\vec r_g$ expressed in spherical coordinates.
+        ⟨newline⟩
+        This is, indeed, the standard definition of the term /#order#/ of a spherical integration rule.
+        However, `aigg` does not employ spherical harmonics, but rather a criterion expressed in terms of Cartesian monomials, which can be shown to be equivalent.
+        This is described just below.
+      * Resolution of the {Dirac delta} distribution {in} terms of {spherical} series {expansions}
+        By definition, a spherical integration rule of order $L$ can exactly integrate all functions
+        \[ \tilde f(\theta,\phi) = \sum_{l=0}^L\sum_{m=-l}^{l} c_{lm} Y_{lm}(\theta,\phi) \]
+        written in the spherical expansion introduced ^#SphericalSeriesExpansionFormal#^{last section}.
+        To get an impression of what this /#means#/; in particular, of what kind of spatial resolution an integration rule must be able to handle to support an order of $L$, we can ask ourselves: what are the limits of which kinds of functions such an order $L$ expansion could possibly represent?
+        What is the /#worst#/ function one could possibly apply it to?
+        To do so, one can consider the accuracy of the expansion of the /#least spherically uniform#/ /#“function”#/ one could possibly imagine, in terms of spherical harmonics: the Dirac $\delta$-distribution.
+
+        * The spherical Dirac delta distribution
+          Let $\vec z\in \spa{S}_2$ denote one fixed point on the sphere.
+          The associated (two-dimensional, spherical) ^#https://en.wikipedia.org/wiki/Dirac_delta_function#^{Dirac $\delta_{\vec z}$-distribution} then is a $\delta_{\vec z}(\vec r):\;\spa{S}_2\mapsto \spa{R}$ function-like object, which is characterized by the following two properties:
+          - $\delta_{\vec z}(\vec r)$, more conventionally written as “$\delta(\vec r - \vec z)$”, yields a value of /#exactly zero#/ for all function arguments $\vec r\in\spa{S}_2$ which do not coincide with the fixed point $\vec z\in\spa{S}_2$. That is,
+            \[ \forall\vec r\in\spa{S}_2 \text{ with } \vec r\neq \vec z:\quad\delta(\vec r-\vec z)=0 \]
+          - $\delta_{\vec z}(\vec r)$ yields a value of $+\infty$ for $\vec r=\vec z$ in exactly such a way that for /#any#/ (normal) spherical function $f:\spa{S}_2\mapsto \spa{C}$ the following identity holds:
+            \[ \int_{\spa{S}_2} f(\vec r)\,\delta(\vec r - \vec z)\,\d\Omega = f(\vec z) \]
+            (#(more formally, this is not a mathematical result, but rather the actual definition of the $\delta$ distribution; where the real mathematics are involved is defining a ^#https://en.wikipedia.org/wiki/Measure_(mathematics)#^{formal framework} supporting such objects as Dirac-$\delta$ in a non-contradictory and well-defined way. Note that for common standard definitions of integrals, the lhs integral would be either zero or ill-defined if $\delta(\vec r-\vec z)$ were treated as a regular $\spa{S}_2\mapsto \spa{R}\cup\{\pm \infty\}$ function, but certainly not equal to the value of any generic integrand $f$ at a /#single point#/ $\vec z$)#)
+          So $\delta(\vec r-\vec z)$ carries its entire integration weight in a single point $\vec z\in\spa{S}_2$, and is zero everywhere else.
+          It is the very embodiment of the concept of a /#“least spherically uniform function”#/!
+
+        * Maximally localized functions of order L
+          So what do we obtain when we attempt to represent this object in terms of a spherical series expansion of finite order $L$?
+          The resulting function $\tilde f(\theta,\phi)$ should then provide us with the most $\delta$-like object (in a least squares sense), and thereby least spherically uniform function, which a spherical expansion of order $L$ just /#barely#/ can still represent while concentrating the spread of $\tilde f(\theta,\phi)$ as closely as possible to a single given point $\vec z$ on the sphere.
+
+          So let us obtain the functions $\tilde f(\vec r; \{\vec z, L\})$ -- each a function of argument $\vec r\in\spa{S}_2$ which parametrically depends on the target point $\vec z\in\spa{S}_2$ and the expansion order $L$ -- by fitting them to Dirac $\delta$-distributions.
+          In the ^#SphericalSeriesExpansionFormal#^{previous section} we stated that the corresponding least-squares function fit
+          \[ \tilde f\bigl(\theta,\phi; \{\vec z,L\}\bigr) = \sum_{l=0}^L\sum_{m=-l}^{l} c_{lm} Y_{lm}(\theta,\phi) \]
+          to a target function $f(\theta,\phi)$ is obtained with the expansion coefficients $c_{lm}$ given by
+          \[c_{lm} =  \int_{0}^{\pi} \int_{0}^{2\pi} \bigl(Y_{lm}(\theta,\phi)\bigr)^* f(\theta,\phi)\,\sin(\theta)\,\d\theta\,\d\phi. \]
+          In the current case of $f(\vec r)$ replaced by $\delta(\vec r-\vec z)$, this integral is trivial to evaluate; by the definition of Dirac-$\delta$, it simply yields
+          \[c_{lm} =  \bigl(Y_{lm}(\vec z)\bigr)^* = \bigl(Y_{lm}(\theta_z,\phi_z)\bigr)^*, \]
+          where $\theta_z,\phi_z$ denote the spherical coordinates of $\vec z$.
+          Consequently, we directly obtain
+          \[ \tilde f\bigl(\theta,\phi; \{\vec z,L\}\bigr) = \sum_{l=0}^L\sum_{m=-l}^{l} \bigl(Y_{lm}(\theta_z,\phi_z)\bigr)^{*} Y_{lm}(\theta,\phi) \]
+          as a closed-form analytic expression for the function most localized on a single point $\vec z\in\spa{S}_2$ which a $L$'th order spherical expansion could possibly represent.
+        * Visualization of the maximally localized functions
+#+ -rw-rw-r--. 1 cgk cgk 206801 14. Jul 14:10 DiracDeltaExpansion_MaxL1.png
+#+ -rw-rw-r--. 1 cgk cgk 291728 14. Jul 14:10 DiracDeltaExpansion_MaxL2.png
+#+ -rw-rw-r--. 1 cgk cgk 316475 14. Jul 14:10 DiracDeltaExpansion_MaxL3.png
+#+ -rw-rw-r--. 1 cgk cgk 317583 14. Jul 14:10 DiracDeltaExpansion_MaxL5.png
+#+ -rw-rw-r--. 1 cgk cgk 313230 14. Jul 14:10 DiracDeltaExpansion_MaxL7.png
+#+ -rw-rw-r--. 1 cgk cgk 328485 14. Jul 14:10 DiracDeltaExpansion_MaxL10.png
+#+ -rw-rw-r--. 1 cgk cgk 320479 14. Jul 14:10 DiracDeltaExpansion_MaxL14.png
+#+ -rw-rw-r--. 1 cgk cgk 287664 14. Jul 14:10 DiracDeltaExpansion_MaxL20.png
+#+ -rw-rw-r--. 1 cgk cgk 283147 14. Jul 14:10 DiracDeltaExpansion_MaxL30.png
+#+ -rw-rw-r--. 1 cgk cgk 269334 14. Jul 14:10 DiracDeltaExpansion_MaxL40.png
+#+ -rw-rw-r--. 1 cgk cgk 255830 14. Jul 14:10 DiracDeltaExpansion_MaxL60.png
+#+ ~/dev/sphere_grids/hp/img/spherical-dirac-delta-expansion>
+          The following >#VisualizationOfMaximallyLocalizedFnSection#<{table} provides visualizations of the just described maximally localized functions $\tilde f\bigl(\theta,\phi; \{\vec z,L\}\bigr)$ for different expansion orders $L$:
+
+#+          <div style="font-size:90%">
+#+           <div>
+#+           <table style="width:80%; margin-left:10%; margin-right:10%;">
+#+           <table style="margin-left:10%; margin-right:10%;">
+#+           <tr>
+#+           #| {Max $L$} #| {$1/(L+1)^2$} #| {Plot of $\tilde f(\vec r; \{\vec z,L\})$}
+#+           </tr>
+#+           <tr>  | {2}    | {1/9           }  | {<img style="padding: 4px; background-color:#fff; border: none; width:40%; padding:5%; height:auto;" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL2.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=2">} </tr>
+#+           <tr>  | {3}    | {1/16          }  | {<img style="padding: 4px; background-color:#fff; border: none; width:40%; padding:5%; height:auto;" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL3.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=3">} </tr>
+#+           <tr>  | {5}    | {1/36          }  | {<img style="padding: 4px; background-color:#fff; border: none; width:40%; padding:5%; height:auto;" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL5.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=5">} </tr>
+#+           <tr>  | {7}    | {1/64          }  | {<img style="padding: 4px; background-color:#fff; border: none; width:40%; padding:5%; height:auto;" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL7.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=7">} </tr>
+#+           <tr>  | {10}   | {1/121         }  | {<img style="padding: 4px; background-color:#fff; border: none; width:40%; padding:5%; height:auto;" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL10.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=10">} </tr>
+#+           <tr>  | {14}   | {1/225         }  | {<img style="padding: 4px; background-color:#fff; border: none; width:40%; padding:5%; height:auto;" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL14.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=14">} </tr>
+#+           <tr>  | {20}   | {1/441         }  | {<img style="padding: 4px; background-color:#fff; border: none; width:40%; padding:5%; height:auto;" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL20.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=20">} </tr>
+#+           <tr>  | {30}   | {1/961         }  | {<img style="padding: 4px; background-color:#fff; border: none; width:40%; padding:5%; height:auto;" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL30.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=30">} </tr>
+#+           <tr>  | {40}   | {1/1681        }  | {<img style="padding: 4px; background-color:#fff; border: none; width:40%; padding:5%; height:auto;" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL40.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=40">} </tr>
+#+           <tr>  | {60}   | {1/3721        }  | {<img style="padding: 4px; background-color:#fff; border: none; width:40%; padding:5%; height:auto;" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL60.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=60">} </tr>
+#+           </table>
+          ⟨force-newline⟩
+
+          | Max $L$    | $1/(L+1)^2$              | Plot of $\tilde f(\vec r; \{\vec z,L\})$ |
+          |------------|--------------------------|------------------------------------------|
+          | 2          | $1/9$            | <img width="40%" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL2.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=2"> |
+          | 3          | $1/16$           | <img width="40%" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL3.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=3"> |
+          | 5          | $1/36$           | <img width="40%" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL5.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=5"> |
+          | 7          | $1/64$           | <img width="40%" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL7.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=7"> |
+          | 10         | $1/121$          | <img width="40%" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL10.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=10"> | 
+          | 14         | $1/225$          | <img width="40%" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL14.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=14"> | 
+          | 20         | $1/441$          | <img width="40%" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL20.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=20"> |
+          | 30         | $1/961$          | <img width="40%" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL30.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=30"> |
+          | 40         | $1/1681$         | <img width="40%" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL40.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=40"> |
+          | 60         | $1/3721$         | <img width="40%" src="img/spherical-dirac-delta-expansion/DiracDeltaExpansion_MaxL60.png" alt="spherical Dirac delta expanded in spherical harmonics of order up to L=60"> |
+
+          ⟨force-newline⟩
+
+          *#Comments:#*
+          - The color in the plots describe the normalized value which the maximally localized functions $\tilde f\bigl(\theta,\phi; \{\vec z,L\}\bigr)$
+            take on the corresponding point $\vec r$ on the sphere:
+            - Red color characterizes positive values
+            - Grey color characterizes zero values
+            - Blue color characterizes negative values
+            The point $\vec z$ on the sphere is fixed in all cases, as is the sphere and plot orientation.
+          - We can see that as the expansion order $L$ becomes larger, the point-like Dirac function can be resolved more and more accurately, which can be seen by the integration weight of $\tilde f$ becoming more and more localized over a smaller and smaller area.
+
+            As described in the motivation of this section, this area also characterizes the approximate spatial resolution which the corresponding spherical expansion of order $L$ would have in approximating a /#general#/ target function $f$.
+
+            And, as also described, a spherical integration rule of order $L$ must be able to resolve any function of a $L$'th order
+            spherical expansion /#exactly#/, and therefore must be capable of providing a minimum of the indicated spatial resolution
+            /#at every single point on the sphere surface#/ (#(otherwise it could not resolve the maximally localized function $\tilde f(\theta,\phi; \vec z,L)$ with central point $\vec z$ in the vincinity of this point)#).
+            This places an upper limit on how far the points $\{\vec r_g\}$ of the integration rule could be spaced apart from each other.
+          - For the second column, $1/(L+1)^2$, notice that $N=(L+1)^2$ is the total number of basis functions $Y_{lm}(\vec r)$ (with $l\leq L$ and $\abs{m}\leq l\}$) available to a spherical expansion of order $L$. This number therefore provides an upper bound of $1/N=1/(L+1)^2$ as fraction of the sphere surface which a maximally localized function could possibly resolve.
+
+
+
+#+           <div style="font-size:90%;">
+#+           <table style="width:100%;">
+#+           <tr>
+#+           #THL{Tier} #THL{Name} #THL{Description} #THR{@{-2em}#bf(C)} #THR{#bf(H)} #THR{#bf(Cu)} #THL{@{1em}Comment}
+#+           </tr>
+#+           <tr> #TDL{2*}  #TDL{|def2-SV(P)|  } #TDL{(“split valence polarized”)}                    #TDR{@{-2em}  9}   #TDR{  2}   #TDR{ 24}  #TDL{@{1em}(qualitative)}   </tr>
+#+           <tr> #TDL{2}   #TDL{|def2-SVP|    } #TDL{(“split valence polarized”)}                    #TDR{@{-2em} 14}   #TDR{  5}   #TDR{ 31}  #TDL{@{1em}(qualitative)}  </tr>
+#+           <tr> #TDL{2+}  #TDL{|def2-SVPD|   } #TDL{(“...+diffuse”)}                                #TDR{@{-2em} 20}   #TDR{  8}   #TDR{ 34}  #TDL{@{1em}(qualitative)}  </tr>
+#+           <tr> #TDL{3*}  #TDL{|def2-TZVP|   } #TDL{(“triple-$\zeta$ valence polarized”)}           #TDR{@{-2em} 31}   #TDR{  6}   #TDR{ 45}  #TDL{@{1em}            }  </tr>
+#+           <tr> #TDL{3}   #TDL{|def2-TZVPP|  } #TDL{(“triple-$\zeta$ valence polarized”)}           #TDR{@{-2em} 31}   #TDR{ 14}   #TDR{ 64}  #TDL{@{1em}(choice #1!)}  </tr>
+#+           <tr> #TDL{3+}  #TDL{|def2-TZVPPD| } #TDL{(“...+diffuse”)}                              #TDR{@{-2em} 37}   #TDR{ 17}   #TDR{ 67}  #TDL{@{1em}            }  </tr>
+#+           <tr> #TDL{4*}  #TDL{|def2-QZVP|   } #TDL{(“quadruple-$\zeta$ valence polarized”)}        #TDR{@{-2em} 57}   #TDR{ 30}   #TDR{ 84}  #TDL{@{1em}(high accu.)}  </tr>
+#+           <tr> #TDL{4}   #TDL{|def2-QZVPP|  } #TDL{(“quadruple-$\zeta$ valence polarized”)}        #TDR{@{-2em} 57}   #TDR{ 30}   #TDR{100}  #TDL{@{1em}(high accu.)}  </tr>
+#+           <tr> #TDL{4+}  #TDL{|def2-QZVPPD| } #TDL{(“...+diffuse”)}                              #TDR{@{-2em} 63}   #TDR{ 33}   #TDR{100}  #TDL{@{1em}(high accu.)}  </tr>
+#+           </table>
+
+
+
+        * Implications for integration rules
+          We will ^#HowIntegrationPointsDistributedSection#^{later argue} that considering maximally localized functions of this kind provides important information on how a spherical integration rule $\{(\vec r_g,\vec w_g)\}$ should look in order to achieve maximum efficiency.
+          And, in particular, that the size of the spatial features of these functions limit the maximum spacing between grid points $\{\vec r_g\}$ which a integration rule could possibly allow while still being of a given order $L$.
+  #+         (#(and, in particular, that it cannot have gaps in grid point coverage of the sphere which are larger than the spatial features of these maximally localized functions)#).
+
+
+
+
+
+
+#+         So, what kinds of functions $f(\vec r)$ defined on the sphere can a spherical expansion of order $L$
+
+
+      * Order from spherical Cartesian monomials
+        As mentioned, `aigg` does not actually use spherical harmonics in its optimization of integration rules,
+        but rather >#CartesianMonomialsSection#<{/#Cartesian monomials#/}, which are simpler functions.
+        We next argue that using either set of functions is mathematically equivalent:
+        - Let use define a _#spherical Cartesian monomial#_ as the function $m_{ijk}(\vec r):\;\spa{S}_2\mapsto \spa{C}$
+          \[ m_{ijk}(x,y,z) := x^i y^j z^k.\]
+          That is, the functional form of the spherical Cartesian monomials is identical to the regular $\spa{R}^3$ monomials -- they just map $(x,y,z)$ to the corresponding coordinates raised to the $i$th, $j$th, and $k$th power.
+          However, we (sometimes) use the term to indicate that the /#domain#/ of the functions (i.e., the set of admissable function arguments), is restricted to arguments $\vec r$ on the unit sphere; that is, $m_{ijk}$ is only ever evaluated for arguments $\vec r=(x,y,z)$ with $x^2+y^2+z^2=1$.
+        - The _#degree#_ of $m_{ijk}$ is defined as
+          \[ \abs{m_{ijk}} := i + j + k.\]
+          Let us further define the set of Cartesian monomials of fixed degree $L\in\{0,1,2,\ldots\}$ as:
+          \[ M_L := \{ m_{ijk};\, i+j+k = L\},\]
+          the set of Cartesian monomials of degree $L$ or smaller as
+          \[ M_{\leq L} := \{ m_{ijk};\, i+j+k \leq L\},\]
+          and $M_{-1} := \{\}$ (i.e., as empty set).
+        - Instead of the spherical harmonics based definition from the last section, one /#could#/ also consider defining the order of a spherical integration rule as:
+
+          > /#The order $L$ of a spherical integration rule $\{(\vec r_g,w_g)\}$ is defined as the largest integer $L$ for which it integrates all spherical Cartesian monomials $m_{ijk}$ with $i+j+k\leq L$ exactly:#/
+          > \[ \forall m_{ijk} \in M_{\leq L}:\quad\int_{\spa{S}_2} m_{ijk}(x,y,z)\,\d\Omega = \sum_{g=1}^N m_{ijk}(x_g,y_g,z_g)\,w_g.
+          > \]
+          ⟨newline⟩
+          In this, $x_g$, $y_g$, $z_g$ denote the Cartesian coordinates of $\vec r_g\in\spa{S}_2$ (note that since $\vec r_g$ lies on the sphere, $x_g^2+y_g^2+z_g^2=1$).
+
+          Monomials are simpler functions than spherical harmonics, and easier to handle in formal derivations.
+          However, instead of discussing the validity, merits, or rationale of this approach, we will just note that this definition is equivalent to the standard one in terms of spherical harmonics (next section).
+
+
+      * Equivalence of both order definitions
+#+       Cartesian {monomials and spherical harmonics}
+        TODO: >#MonomialsVsSphericalHarmonicsSection#<{*#Monomials and spherical harmonics#*}: (#TODO: copy cleaned argument from paper draft#)
+        - Theorem: Let $L\geq 0$ be a given integer, and let a spherical integration rule
+          \[ \int_{\spa{S}_2} f(\vec r)\,\d\Omega = \sum_{g} f(\vec r_g)\,w_g \]
+          be exact for all spherical Cartesian monomials
+          \[ m_{ijk}\in M_{L}\cup M_{L-1}.
+          \]
+          (i.e., all $m_{ijk}$ with $i+j+k$ either $L$ and $L-1$).
+          Then the following holds:
+          - The integration rule is also exact for all $m_{ijk}\in M_{\leq L}$ (i.e., for all $m_{ijk}$ with $i+j+k\leq L$).
+          - The integration rule is also exact for all spherical harmonics in the set
+            \[ \{ Y_{lm};\; l\leq L, -l\leq m \leq l \}. \]
+          That is:
+          /#A spherical integration rule which exactly integrates all monomials of degree $L$ and $L-1$, is automatically of order $L$ in both the spherical monomials sense and the spherical harmonics sense#/.
+        - The reverse implication also holds: an integration rule of order $L$ in the spherical harmonics sense integrates all monomials of degree $\leq L$ exactly.
+
+          So in the future we will no longer distinguish the different characteristics of _#order#_ of a spherical integration rule.
+
+        - For spherical monomials, exactness of a rule for $M_{L}$ and $M_{L-1}$ implies
+          its exactness for all $M_{L'}$ with $L'\leq L$:
+          Approach: downward induction. Let $L\geq 2$ and rule be exact for $M_L$. Then by the following argument, it is also exact for $M_{L-2}$:
+          Let $m\in M_{L-2}$. Then
+          \[[(x^2+y^2+z^2)\,m_{ijk}(x,y,z) &=& x^2 m_{ijk}(x,y,z) + y^2 m_{ijk}(x,y,z) + z^2 m_{ijk}(x,y,z)
+          \\ &=& m_{(i+2)jk}(x,y,z) + m_{i(j+2)k}(x,y,z) + m_{ij(k+2)}(x,y,z)
+          \]]
+          All monomials on the rhs lie in $M_L$, and are therefore integrated exactly (because all $M_L$ functions are by premise).
+          As both the analytical integration and the integration rule are linear, this implies the lhs expression $(x^2+y^2+z^2) m_{ijk}$ is also integrated exactly.
+          However, for points of its domain, namely all $(x,y,z)\in \spa{S}_2$, we have
+          \[ x^2+y^2+z^2=1.\]
+          So for the lhs, we get
+          \[ (x^2+y^2+z^2)\,m_{ijk}(x,y,z) = m_{ijk}(x,y,z)\]
+          and therefore $m_{ijk}\in M_{L-2}$ is exactly integrated, too, if the rule is exact for all $m\in M_{L}$.
+
+        - Next: all spherical harmonics $Y_{lm}$ can be written as linear combination in terms of monomials $m_{ijk}$ with $i+j+k=l$; since the $m_{ijk}$ are integrated exactly, so are the $Y_{lm}$.
+
+          Reverse direction (exactness for $Y_{lm}$ implies exactness for monomials): Dimensional argument:
+          - $Y_{lm}$ can be written as $l$'th degree polynomial in $x,y,z$.
+            For each $l$ there will be a $k_l$ such that either $2k_l+l=L$ or $2k_l+l=L-1$.
+            Consequently, set entry in
+            \[ \bigl\{r^{2k_l} Y_{lm};\,m\in\{-l,\ldots,+l\}\bigr\}, \]
+            can be written as Cartesian polynomial of either $L$th or $L-1$th order.
+            However, on the sphere, $r^2=1$, so the resulting functions are /#identical#/ to the original $Y_{lm}$ if restricted to the sphere; in particular, they are still linearly independent.
+          - The monomials $M_{L}\cup M_{L-1}$ are linearly independent.
+          - There are exactly as many $\{Y_{lm}\}$ with $l\leq L$ as there are monomials in $M_{L}\cup M_{L-1}$.
+          - So we have two vector spaces of identical dimension, and one (the monomials) spans the other (the harmonics). That only works if the harmonics also span the monomials.
+          - $\Rightarrow$ exactness for $Y_{lm}$ implies exactness for monomials.
+
+          In total: It's the same. Can use monomials to optimize, too.
+          Closer correspondence to 1D Gaussian integration rules.
+    * Separable grids and special point rules
+      - Lobatto grid: uneven density of points: on certain parts of the sphere, the integral over the target functions
+        can be represented more accurately than at others.
+        - $\Rightarrow$ rule is not rotationally invariant; rotating it will give different results.
+        - $\Rightarrow$ rule may be less efficient (in terms of achieved order for a given number of integration points) than a rule with more equally distributed points
+        - And efficiency can be very important in various practical applications, where evaluating the points on the sphere may be very expensive.
+      - Special point rules: ...
+      - Fully equally distributed points: can't be done, in general
+    * Interpretation of the points and weights, and weight spread [c]
+      - Points and weights distributed on the unit sphere (=surface of the unit ball)
+      - Weights represent 2d surface areas, which the point covers
+
+#+     * Analytical and numerical integration on the sphere
+#+       -
+#+   * Examples use in theoretical chemistry: The ubiquitous integration grids in DFT
+#+   * Example: Spherical integration rules in theoretical chemistry: The integration grids in DFT
+#+   * Example: Spherical integration rules in molecular integration grids (DFT)
+#+   * Spherical integration rules supported by point groups
+#+      <div class="note">
+      * Why should integration points cover the sphere?
+        We mentioned that the points of an integration rule must cover the entire sphere to support high orders of $L$.
+        That can be rationalized by the >#HowIntegrationPointsDistributedSection#<{following argument}:
+        - FIXME: use the Dirac-$\delta$ expansions instead. That is a cleaner and more visual argument.
+        - Suppose there is a region $\Theta\subset \spa{S}_2$ of finite (non-zero) area on which there are /#no#/ integration points $\vec r_g$:
+          \[ \forall \vec r_g:\;\vec r_g\notin \Theta.\]
+        - Let us define the following indicator function:
+          \[ H_\Theta(\vec r) := \begin{cases} 1 &: \vec r \in\Theta \\ 0&: \vec r \notin\Theta\end{cases}. \]
+        - Since there are no integration points on this region $\Theta\subset \spa{S}_2$ of the sphere,
+          for each point $\vec r_g$ of the integration rule, we will get
+          \[H_\Theta(\vec r_g)=0\]
+          for the indicator function (because the function $H_\Theta$ was defined to only yield non-zero values on $\Theta$).
+          Consequently, we get for the integral approximation of $H_\theta(\vec r)$ implied by the rule:
+          \[ \abs{\Theta} = \int_{\spa{S}_2} H(\vec r)\,\d\Omega \approx \int \underbrace{H(\vec r_g)}_{=0} w_g = 0\]
+          That is, instead of returning the correct result for the lhs integral, which is the area $0\leq\abs{\Theta}\leq 4\pi$ covered by $\Theta$ (note that we defined it to be non-zero), this integral approximation will yield a uniformly incorrect result of zero.
+          The same, of course, holds for the function norm of $H_\Theta$, for which the integration rule would yield an incorrect result of $\norm{H_\Theta}=0$.
+          - The norm $\norm{f}$ is defined in ^#IntegrationRulesAndLinearAlgebraSection#^{usual $L_2(\Omega,\spa{R})$ manner} as
+            \[ \norm{f} := \left(\int_{\spa{S}_2} \abs{f(\vec r)}^2\,\d\Omega\right)^{1/2}. \]
+
+          By itself this is not a problem, because an integration rule of a given order $L$ is not guaranteed to provide correct results for /#all#/ functions on the sphere (e.g., $H_\Theta$), but only for monomials $m_{ijk}(x,y,z)=x^iy^jz^k$ of a given degree $i+j+k\leq L$ (and all functions representable as linear combinations of such, ^#GaussianQuadraturesSection#^{as described before}).
+
+        - However, for any region on the sphere, including $\Theta$, one /#could construct#/ a linear combination of monomials $x^iy^jz^k$,
+          \[ P_\Theta(\vec r) = \sum_{i,j,k=0}^{L} c_{ijk}\,m_{ijk}(r_x,r_y,r_z) \]
+          with the goal of having large contributions mostly for $\vec r$ lying in that region $\Theta$, and very small values everywhere else.
+          To do so, one could /#fit#/ it, for example, to the indicator function $H(\vec r)$:
+          \[[  \{c_{ijk}\} &=& \operatorname{argmin}\limits_{\{c_{ijk}\}} \norm{P_\Theta - H_\Theta}^2
+          \\               &=& \operatorname{argmin}\limits_{\{c_{ijk}\}} \int_{\spa{S}_2} \abs{P_\Theta(\vec r) - H_\Theta(\vec r)}^2\,\d\Omega
+          \]]
+  #+         \[ H_\Theta(\vec r) := \begin{cases} 1 &: \vec r \in\Theta \\ 0&: \vec r \notin\Theta\end{cases}. \]
+  #+         To do so, one could /#fit#/ it, for example, to the following indicator function:
+  #+         \[ H_\Theta(\vec r) := \begin{cases} 1 &: \vec r \in\Theta \\ 0&: \vec r \notin\Theta\end{cases}. \]
+          - With arbitrary $L$, in principle any accuracy for this fit is possible, for the same reason as mentioned in the 1D section on ^#MonomialsAsL2BasisVectorsSection#^{approximating $L_2$ functions with monomials}.
+            That is, for any $\epsilon > 0$, there will be an $L$ which allows finding coefficients $c_{ijk}$ such that $\norm{P_\Theta - H_\Theta}<\epsilon$ in this sense.
+          - For a given finite order of $L$, the degree and resolution to which certain (small) areas can be targeted by such a fitted linear combinations of monomials depends on $L$, and thereby the sets of $\{m_{ijk}(x,y,z);\,i+j+k\leq L\}$ one has available to build these linear combinations of. Generally, larger $L$ allow much sharper features to be resolved by spherical polynomials, and therefore provide less leeway in supporting “holes” in the integration grid coverage.
+  #+       - Now, since there are no integration points on this region $\Theta\subset \spa{S}_2$ of the sphere,
+  #+         for each point $\vec r_g$ of the integration rule, we will get
+  #+         \[H_\Theta(\vec r_g)\]
+  #+         for the indicator function (because the function $H_\Theta$ was defined to only yield non-zero values on $\Theta$).
+  #+         Consequently, we get for the integral approximation of $H_\theta(\vec r)$ implied by the rule:
+  #+         \[ \abs{\Theta} = \int_{\spa{S}_2} H(\vec r) \d\Omega \approx \int \underbrace{H(\vec r_g)}{=0} w_g = 0\]
+  #+         That is, instead of returning the correct result for the lhs integral, which is the area $0\leq\vert\Theta\vert\leq 4\pi$ covered by $\Theta$ (note that we defined it to be non-zero), this integral approximation will yield a uniformly incorrect result of zero.
+        - However, ^#SphericalOrderSection#^{as explained here}, a spherical integration rule of order $L$ must integrate all $m_{ijk}(x,y,z)$ with $i+j+k\leq L$ /#exactly#/, and consequently also all polynomials of degree $\leq L$.
+        - TODO: Use triangle identities etc to show that holes are problems.
+
+  #+       (see earlier sections on ^#GaussianQuadraturesSection#^{integrating polynomials} and ^#MonomialsAsL2BasisVectorsSection#^{approximating $L_2$ functions with monomials}).
+
+
+  #+
+  #+         (the degree and resolution to which certain (small) areas can be targeted by linear combinations of monomials depends on $L$, and thereby the sets of $\{m_{ijk}(x,y,z);\,i+j+k\leq L\}$ one has available to build these linear combinations. ).
+#+      </div>
+
+
+  * {Spherical} integration {rules supported by point groups}
+#+     * How may point group symmetries be used to constrain integration rules?
+    * Integration rules of given group symmetries symmetry
+      (illustrate with a single reflection operation?)
+
+      In principle, a spherical integration rule $\{(\vec r_g, w_g)\}$ need not have any specific distribution of the grid points $\{\vec r_g\}$ in space.
+      The provided definitions of _#order#_ of the rule, and the general goal of making them integrate as many spherical harmonics as reasonably possible with a given number of grid points, hold independently of that.
+      And, additionally, any integration rule which can be expressed /#with#/ an explicitly enforced point group symmetry, can of course also be expressed without this symmetry (#(by simply listing all grids poins $\{(r_g)\}$ and weights explicitly in terms of coordindates, as how they would result from the symmetry application)#)
+
+      However, in practice there are several advantages to optimizing spherical rules of fixed point group symmetries:
+      - In general, integration rules in which the points are very evenly distributed across the sphere are much more robust and versatile than rules which do not.
+        Additionally, all parts of the sphere /#must#/ be covered to some degree by integration points (see ^#VisualizationOfMaximallyLocalizedFnSection#^{section on maximally localized functions} for an explanation).
+        The polyhedral symmetries simplify the construction of an even, gap-less coverage of the sphere with integration points, which for the given reasons would anyway be required, even if point group symmetry were /#not#/ explicitly used in constructing the integration rules.
+      - The amount of data in memory, binaries, executables, etc., which is required to tabulate and use the integration rules is reduced, because only the symmetry-unique subsets of the data have to be explicitly represented.
+      - The the numerical optimization of the integration rules becomes easier, because now /#only the positions of the seed points#/ are free variables which have to be subjected to the non-linear numerical optimization process, rather than the much larger full set of grid points $\{ \vec r_g \}$.
+        This allows finding high quality solutions for much higher integration orders than would be practical without the extra symmetry.
+      - Additionally, all of the ^#PolyhedralPointGroupsSection#^{polyhedral symmetries} have the property that
+        symmetric integration rules /#automatically#/ integrate certain subsets of ^#CartesianMonomialsSection#^{target functions} either exactly or equivalently.
+        For this reason, the set of target functions, which implicitly defines the error function of the non-linear optimization of the seed point coordinates, can also be reduced accordingly for gains in performance and numerical stability.
+        - (#(Exactly which functions that are depends on the symmetry group. For example, for a point group containing the $\groupelement{\sigma}_x$ mirror symmetry ($\groupelement{\sigma}_x(x,y,z)=(-x,y,z)$) as operation, the corresponding integration rule will automatically yield the (correct) result that integrals over all monomials $m_{ijk}(x,y,z)=x^iy^jz^k$ with odd integers $i$ vanish, /#regardless#/ of where the seed points $\{\vec r_q\}$ are placed on the sphere -- these functions therefore can be entirely omitted from the target space. Similarly, point groups containing rotations which reduce to Cartesian coordinate permutations (e.g., $(x,y,z)\mapsto(y,z,x)$) treat some corresponding classes of monomials equivalently, so that only one canonical representative of each class has to be included in the target function set)#)
+#+         Similarly, a point group containing the coordinate permutation $(x,y,z)\mapsto(y,z,x)$
+#+         similarly
+#+         target monomials; ).
+
+
+      FIXME: put in
+      - For a given point group, include all images... (with the same weight)
+      - Definition of order and spherical rule etc. still applies as in the general case.
+      - That is, a general rule can always represent a symmetric rule, but not necessarily vice-versa.
+      - Symmetries still very helpful in obtaining reasonable initial guesses and constraints, which greatly simplify the optimization iterative process $\Rightarrow$ optimize only the reduced set of seed points $\{\vec r_q;\,q\in\{1,2,\ldots,N_{\text{seed}}\}\}$ (up next),
+        from which the full set of points is generated as
+        \[ \{\vec r_g\} = \bigl\{ \groupelement{g}(\vec r_q);\,\groupelement{g}\in\groupname{G}, q\in\{1,2,\ldots,N_{\text{seed}}\}\bigr\}  \]
+        rather than optimizing the full set of grid points $\{\vec r_g\}$ directly.
+        While the obtained rules are /#less#/ general, this results in a greatly reduced parameter space which must be searched during the non-linear optimization process.
+
+      In particular, the point group symmetry simplifies obtaining a reasonably
+      even distribution of the actual grid points across the sphere surface, which
+      is otherwise /#not#/ a trivial process.
+      For the example of generating an initial guess of the grid point positions,
+      this is demonstrated in the following image:
+      <div><a href="img/initial-guess-concept-1-2048.png"><img style="padding: 4px; background-color:#fff; border-color:#000; border: none; width:90%; margin-left:5%; height:auto;" src="img/initial-guess-concept-1.png" alt="illustration of spreading grid points across the entire sphere surface by defining them on the fundamental domain of a polyhedron and then replicating them using the point group symmetry operations"></a></div>
+      The concept of the ^#FundamentalRegionsSection#^{fundamental domain} and details of the ^#PolyhedralPointGroupsSection#^{supported points groups} are discussed below.
+
+#+       For example, with the support of a large polyhedral point group symmetry,
+#+         obtaining a reasonable
+
+    * {Seed points} of a symmetric integration rule
+      - To characterize each integration rule, we use only an “irreducible” subset of information: namely the set of “seed points” of the integration rules.
+        However, the actual integration rules always contain the full orbits of each seed point (and each point on the orbit generated from a seed point is assigned equal weight).
+      - The seed points are symmetry unique points of the rule; or, in group theory language:
+        For each point $\vec r_i\in\spa{R}^3$ of the actual rule, there is only a single canonical representative $\vec r_q\in\spa{R}^3$ of the group orbit
+        \[ \groupname{G}(\vec r_q) = \bigl\{\groupelement{g}(\vec r_q);\,\groupelement{g}\in\groupname{G}\bigr\}\]
+        in which $\vec r_i$ is contained.
+      - However, note that the actual /#orbit length#/ of the seed point, that is the number of points it actually contributes to the integration rule, may be smaller than the number of group elements $\abs{\groupname{G}}$ in the case in which the seed point lies ^#SpecialOrbitsSection#^{on a special orbit}.
+        Generally, integration rules including special orbit points appear to be more efficient than integration rules which do not include any special orbit points.
+      - From the seed points, the weights and corresponding orbit types can be automatically generated.
+  #+   * The iterative optimization process
+    * {Iterative optimization} of a symmetric integration rule
+      - Define residual; it's an expression defined using a bi-orthogonal basis of the target space
+        \[ r^2 = \ldots\]
+        The seed point weights $\{w_q\}$ are chosen implicitly (via a linear least squares fit) to minimize the residual.
+        The positions of the seed points, $\{\vec r_q\}$, are non-linear parameters to the optimization problem; these are what is actually optimized during an `aigg` run for a single grid.
+        By default, they are optimized using a trust-region Newton method.
+      - The details of optimization process, as well as the derivation of the optimization formulas, are is described in detail in ^#AiggArticle1#^{our article}.
+  * Point group {symmetries supported by aigg}
+#+     (help in optimizing rules by reducing the search space)
+    * Polyhedral point groups
+#+       In general, _#point groups#_ are mathematical groups; the group elements here represent orthogonal linear transformations (combinations of rotations and/or reflections around the coordinate origin) which map $\spa{R}^3$ onto itself.
+      In general, _#point groups#_ are mathematical groups in which the group elements represent orthogonal linear transformations (combinations of rotations and/or reflections around the coordinate origin) which map $\spa{R}^3$ onto itself.
+      Of these, the >#PolyhedralPointGroupsSection#<{_#polyhedral point groups#_} are the point groups which have the property of being the “largest” groups which transform the polyhedron they are named after onto itself.
+      There is only a small finite number of those:
+
+      <div><a href="img/polyhedral-symmetry-groups-vertical-2048.png"><img style="padding: 4px; background-color:#fff; border-color:#000; border: none; width:90%; margin-left:5%; height:auto;" src="img/polyhedral-symmetry-groups-vertical.png" alt="picture of polyhedra and the symmetry groups they support"></a></div>
+
+      /#Some notes:#/
+      - There are five /#“Platonic solids”#/ (tetrahedron, cube, octahedron, dodecahedron, and icosahedron), which are regular polyhedra on $\spa{R}^3$.
+        However, cube and octahedron on one side, and dodecahedron and icosahedron on the other side, are invariant to exactly the same sets of symmetry operations.
+        There are therefore only three types of basic polyhedral point groups: $T$, $O$, and $I$.
+      - There are basic polyhedral point groups ($T$, $O$, and $I$) and extended polyhedral point groups ($T_d$, $T_h$, $O_h$, and $I_h$).
+        The former consist of only proper rotations, while the latter also include symmetry operations which are obtained from reflection symmetries.
+        While `aigg` does support these larger extended point groups, the inclusion of reflection symmetries can cause problems in some applications; additionally, we have not managed to find many high quality integration rules supported by these extended groups (and the most obscure of them, $T_h$, appears to be the most useful one).
+        For this reason we will employ the basic groups ($T$, $O$, $I$) unless otherwise noted.
+    * Fundamental domains
+      The surfaces of the polyhedra can be tiled by a triangle defining the >#FundamentalRegionsSection#<{_#fundamental domain#_}.
+      For example, in the following image, the fundamental domain of a cube in $O$ symmetry is highlighted as a /#triangle with one blue, one cyan, and one grey vertex#/:
+      <div style="margin:1ex;"><img style="padding: 4px; width:35%; margin-left:25%; height:auto;" src="img/groups-polyhedra/O-Cube.png" alt="picture of a cube in O symmetry with fundamental triangle highlighted"></div>
+      The ^#PolyhedralPointGroupsSection#^{last section} contains similar depictions of the fundamental domains for all other supported polyhedral point groups.
+
+#+       In the image, for each polyhedron the fundamental triangle is highlighted as a .
+      Fundamental domains are a central concept in the discussion and optimization of spherical integration rules, because they provide an /#explicit representation#/ of the part of the sphere for which we need to define/derive the integration rule parameters explicitly, and which parts of the sphere are handled /#implicitly#/ as part of the point group symmetry.
+      Effectively, the grid points of our integration rule are implicitly defined by only the (typically much smaller) set of /#seed points#/; and these seed points have to cover /#explicitly#/ only integration weight of a fundamental domain.
+
+#+       _#FIXME: THIS WILL BE EXPLICITLY DISCUSSED WHEN HANDLING INITIAL GUESSES#_
+      This is ^#InitialGuessesSection#^{illustrated and discussed further} in the context of defining initial gueses.
+      
+      ⟨newline⟩
+      *#Notes:#*
+      - A given group may support *#multiple different#* natural definitions of *#fundamental domains#*, even if they are restricted to triangles. For example, for the icosahedral group, one may naturally define the fundamental domain either in terms of the octahedron or the icosahedron, depicted here:
+        <div style="margin-top:0.25ex;margin-bottom:0.25ex">
+        <img style="padding: 4px; width:30%; margin-left:5%; margin-right:5%; height:auto;" src="img/groups-polyhedra/I-Icosahedron.png" alt="picture of an Icosahedron in I symmetry with fundamental triangle highlighted">
+        <img style="padding: 4px; width:25%; margin-left:5%; margin-right:5%; height:auto;" src="img/groups-polyhedra/I-Dodecahedron.png" alt="picture of an icosahedron in I symmetry with fundamental triangle highlighted">
+        </div>
+
+        Note that both domains /#are different#/.
+        Similar considerations hold for cubes and octahedra, both of which have octahedral ($O$) symmetry, although in this case the natural domain in a cube is not an /#equilateral#/ triangle (unlike for all the other considered point groups).
+
+        For some groups, `aigg` allows using different versions of these domains for generating the initial guesses used to start the iterative optimization of spherical rules.
+        These generally yield different results.
+      - Most of the extended groups ($T_d$, $O_h$, $I_h$) are obtained from their basic rotations-only groups ($T$, $O$, $I$) by adding a symmetry operation as generator which asserts that the fundamental domain's triangle is reflected in the middle; note, for example, the subtle difference in the following depictions of the $O$ octahedron (left) and the $O_h$ octahedron (right):
+        <div>
+        <img style="padding: 4px; width:30%; margin-left:5%; margin-right:5%; height:auto;" src="img/groups-polyhedra/O-Octahedron.png" alt="picture of an Icosahedron in I symmetry with fundamental triangle highlighted">
+        <img style="padding: 4px; width:30%; margin-left:5%; margin-right:5%; height:auto;" src="img/groups-polyhedra/Oh-Octahedron.png" alt="picture of an icosahedron in I symmetry with fundamental triangle highlighted">
+        </div>
+        While the actual polyhedra (if seen as plain geometric bodies) do have this reflection symmetry,
+        in practice it tends to interfere with our ability to map an approximate regular grid over this domain (it interferes with close packing in two dimensions).
+        So the majority of high quality integration rules we managed to find do not have the additional reflection symmetry.
+
+
+#+       - ...a region which's images are tiled all over the corresponding polyhedron
+#+       - without loss of generality, one may constrain all seed points of the integration rule to lie either inside or on the border of the fundamental region of the polyhedron.
+#+       - used to define initial guesses in a systematic manner.
+#+       - given by a triangle; the vertices of this define the barycentric coordinates used for generating special point rules and/or systematic sets of initial guesses.
+
+
+
+#+         _#include picture here#_
+#+         (#(pov ray source for rendering this image was kindly recycled from ^#https://en.wikipedia.org/wiki/User:Cyp/Poly.pov#^{Cyp's code on wikipedia})#)
+#+       - Unfortunately, there are only three corresponding polyhedral symmetry groups:
+#+         - The group of symmetry operations which maps the unit cube onto itself is identical to the group of symmetry operations mapping the unit octahedron onto itself (#(if properly scaled and aligned in space)#),
+#+         - and the group of symmetry operations mapping the unit dodecahedron onto itself is identical to the group of symmetry operations mapping the unit icosahedron onto itself  (#(if properly scaled and aligned in space)#).
+#+         This leaves us with the tetrahedral group $T$ (12 elements), the octahedral group $O$ (24 elements), and the icosahedral group $I$ (60 elements) as subset of groups.
+#+         - (#(technically, polyhedra expose symmetries of the larger point groups $T_d$ (24 elements0, $O_h$ (48 elements), and $I_h$ (120 elements); $O_h$ and $I_h$, differ from $O$ and $I$ by including the space inversion operation $\groupelement{\sigma}_{xyz}$ as an additional generator, while obtaining $T_d$ from $T$ is more complicated.
+#+           The reason we use the smaller groups by default is that they often allow for a more balanced distribution of integration points over the sphere)#)
+    * Types of orbits
+      * What is a group orbit?
+        Let $\groupname{G}$ denote one of the polyhedral point groups.
+        - *#The group elements $\groupelement{g}\in\groupname{G}$ map the unit sphere onto itself:#*
+          The group elements $\groupelement{g}\in\groupname{G}$ are symmetry operations which map $\spa{R}^3$ space onto itself.
+          This means that for any vector $\vec r\in\spa{R}^3$, there is a well defined
+          \[ \vec r' = \groupelement{g}(\vec r) \qquad(\in \spa{R}^3) \]
+          obtained by applying the group operation $\groupelement{g}$ to the point represented by $\vec r$.
+          As each $\groupelement{g}\in\groupname{G}$ is a /#symmetry operation#/ mapping the polyhedron onto itself, it is, in particular, also an /#isometric operation#/. This means that it preserves the norm of the the points it is applied to:
+          \[ \forall \vec r\in\mathbb{R}^3:\;\norm{\vec r'} = \norm{\groupelement{g}(\vec r)}. \]
+          Consequently, it maps points on the unit sphere $\spa{S}_2$ onto other points on the unit sphere.
+        - For a given point $\vec r\in\spa{S}_{2}$, the _#group orbit#_, called $\groupname{G}(\vec r)$, is defined as
+          \[ \groupname{G}(\vec r) = \bigl\{\groupelement{g}(\vec r);\,\groupelement{g}\in\groupname{G}\bigr\}\]
+          That is, it is the /#set of points obtained by applying every symmetry operation $\groupelement{g}\in\groupname{G}$ to the initial point $\vec r$#/.
+      * Why are there multiple types of orbits?
+        - With the previous definition, one might expect that a group orbit $\groupname{G}(\vec r)$ always has a length of $\abs{\groupname{G}}$; that is, that it has as many points as there are symmetry operations in the point group $\groupname{G}$.
+        - However, this is not necessarily the case.
+          The reason is that for a given point $\vec r\in \spa{S}_2$, it may happen that multiple different $\groupelement{g}\in\groupname{G}$ yield /#identical#/ transformed points.
+          In this case, the group orbit $\groupname{G}(\vec r)$ will be smaller than $\abs{\groupname{G}}$.
+
+          This is effect is most easily demonstrated in one dimension:
+          - Consider the group $\groupname{G}=\{\groupelement{i}, \groupelement{\sigma}_x\}$, acting on $x\in\spa{R}$.
+            Here $\groupelement{i}$ denotes the identity operation defined by
+            \[ \forall x\in\spa{R}:\; \groupelement{i}(x) := x\]
+            and $\groupelement{\sigma}_x$ the denotes /#“invert the $x$-coordinate”#/-operation defined by
+            \[ \forall x\in\spa{R}:\; \groupelement{\sigma}_x(x) := -x. \]
+          - For any point $x\in\spa{R}$, the group orbit then is
+            \[ \groupname{G}(x) = \{ \groupelement{i}x, \groupelement{\sigma}_x \} = \{x, -x\}. \]
+            For almost all points $x\in\spa{R}$, the group orbit $\groupname{G}(x)$ then will have length of $\abs{\groupname{G}(x)}=2$, which is equal to the number of group elements (=symmetry operations) in $\groupname{G}$.
+          - However, for the single special point $x=0$, the transformed points $x$ and $-x$ making up the group orbit are /#identical#/.
+            Therefore, the set $\{x, -x\}$ defining the group orbit $\groupname{G}(x)$ has only one distinct element, which is $x=0$ itself.
+            So we obtain $\abs{\groupname{G}(x)}=1$ in this case.
+          For the case of three-dimensional polyhedra, there are multiple different types of such orbits (#(up next)#).
+        - We denote orbits with $\abs{\groupname{G}(\vec r)}<\abs{\groupname{G}}$ as _#special orbits#_, and orbits with $\abs{\groupname{G}(\vec r)}=\abs{\groupname{G}}$ as _#general orbits#_.
+        - Special orbits need to be handled with care, because a point on a special orbit generally has a smaller number of geometric degrees of freedom than a general orbit, which means that the number of geometric parameters, which are optimized during an iterative grid optimization, is correspondingly reduced.
+          However, almost all of the best integration rules we managed to construct so far included points on special orbits.
+      * Types of orbits for the supported point groups
+        >#SpecialOrbitsSection#<{In the following}, we list the different types of orbits the rotational point groups $T$, $O$, and $I$, and how `aigg` names them.
+#+         In later versions, some additional
+#+         types of special orbits may be introduced, which would generally appear for
+#+         or for axial groups (currently unsupported).
+
+        For the *#icosahedral group#* $I$:
+#+         has the following types of orbits:
+        - _#vertex orbit#_ (length: 12): Obtained as $I(\vec r)$ for $\vec r$ coinciding with any of the 12 vertices making up the icosahedron mapped in space. This orbit has no geometric degrees of freedom to optimize.
+        - _#center-of-face orbit#_ (length: 20): Obtained as $I(\vec r)$ for $\vec r$ coinciding with the center of any of the 20 equilateral triangles making up the faces of the icosahedron mapped in space. This orbit has no geometric degrees of freedom to optimize.
+        - _#center-of-edge orbit#_ (length: 30): Obtained as $I(\vec r)$ for $\vec r$ coinciding with the center of any of the 30 edges of the icosahedron mapped in space. This orbit has no geometric degrees of freedom to optimize.
+        - _#general orbit#_ (length: 60): Obtained as $I(\vec r)$ for $\vec r$ not in any of the special orbits.
+          Two geometric degrees of freedom to optimize.
+        For the *#octahedral group#* $O$:
+#+         has the following types of orbits:
+        - _#vertex orbit#_ (length: 8): For $\vec r$ coinciding with any of the eight vertices of the cube. No geometric degrees of freedom.
+        - _#center-of-face orbit#_ (length: 6): For $\vec r$ coinciding with the center of any of the six square faces of the cube. No geometric degrees of freedom.
+        - _#center-of-edge orbit#_ (length: 12): For $\vec r$ coinciding with the center of any of the twelve edges of the cube. No geometric degrees of freedom.
+        - _#general orbit#_ (length: 24): For $\vec r$ not in any of the special orbits.
+          Two geometric degrees of freedom to optimize.
+        For the *#tetrahedral group#* $T$:
+#+         has the following types of orbits:
+        - _#vertex orbit#_ (length: 4): For $\vec r$ coinciding with any of the four vertices of the tetrahedron. No geometric degrees of freedom.
+        - _#center-of-face orbit#_ (length: 4): For $\vec r$ coinciding with the center of any of four equilateral triangles making up the faces of the tetrahedron. No geometric degrees of freedom.
+        - _#center-of-edge orbit#_ (length: 6): For $\vec r$ coinciding with the center of any of the six edges of the tetrahedral. No geometric degrees of freedom.
+        - _#general orbit#_ (length: 12): For $\vec r$ not in any of the special orbits.
+          Two geometric degrees of freedom to optimize.
+
+        The enlarged point groups $T_d$, $T_h$, $O_h$, and $I_h$ generally have similar orbit types as their basic variants, with the exceptions that:
+        - The _#general#_ orbit is twice as long (as result of the additional reflection symmetry ($T_d$, $O_h$, $I_h$) or inversion symmetry ($T_h$),
+        - Apart from $T_h$, each includes one or two special orbit types with _#one geometric degree of freedom#_,
+          in which the points are restricted to move on a two-dimensional mirror plane which intersects the sphere
+          (#(and since the points have to stay on the sphere, too, they therefore can only move on a great circle with fixed spatial orientation in space)#)
+
+#+       These can therefore be applied to map points $\vec r\in\spa{R}^3$
+* {Example applications} of spherical integration rules
+  * Example: {Use in} Density Functional Theory ({DFT})
+    * Molecular electronic structure depends on spherical integration rules
+#+     * Molecular DFT depends on spherical integration rules
+#+     * Most molecular electronic structure calculations depend on spherical integration rules
+  #+   for density functionals
+  #+ Spherical integration rules in molecular integration grids (DFT)
+      - The by far most important practical use of spherical integration rules appears in the context of
+        creating  >#MolecularIntegrationGridSection#<{_#molecular integration grids#_} in theoretical chemistry.
+        Such grids are most commonly used in support of molecular electronic structure calculations employing Density Functional Theory (DFT), but also have a large variety of other applications.
+      - For reasons which will become clear below, spherical integration rules are commonly called _#angular integration grids#_ in this context.
+#+       - In this context, spherical integration rules are commonly called _#angular integration grids#_.
+        This is what the name of the `aigg` program refers to -- it was developed for optimizing spherical integration rules for use in molecular electronic structure calculations.
+  #+       was what it was developed for.
+  #+     , and what it was developed for.
+      - To rationalize this development, we here provide some context on this concrete use case in DFT integration grids.
+    * DFT is a big deal
+#+       But first,
+      But before we begin, first note that DFT is *#not#* an obscure academic curiosity:
+#+         But first, note that DFT is *#not#* only an obscure academic curiosity:
+  #+       a *#big deal#*.
+  #+         is near exclusively done using DFT for treating the electronic structure (“QM”) aspect)
+  #+       (the 1998 Nobel price in chemistry for DFT and Quantum Chemistry itself, and the 2013 Nobel price in chemistry for QM/MM, which in practice is near exclusively done using DFT for treating the electronic structure (“QM”) aspects )
+      - There are, literally, /#hundreds of thousands of published research papers#/ addressing either DFT or DFT-related electronic structure theory itself, or employing DFT-based theory or DFT calculations in support of other research.
+      - A large fraction of theoretical chemistry research in industry -- spanning all fields from small molecules over heterogeneous catalysis to bio-science and pharmacy, involve DFT.
+      - Two Nobel prices in chemistry have been awarded which were directly related to DFT:
+        - (#The 1998 Nobel Price in Chemistry (Pople, Hohenberg, Kohn) for DFT and Quantum Chemistry itself#)
+        - (#The 2013 Nobel Price in Chemisty (Karplus, Levitt, Warshel) for QM/MM, which in practice was only made meaningful by using DFT for the “QM” aspect#)
+#+       - Two Nobel prices in chemistry have been awarded which were directly related to DFT
+#+         (#(The 1998 Nobel Price in Chemistry (Pople, Hohenberg, Kohn) for DFT and Quantum Chemistry itself' and 2013 Nobel Price in Chemisty (Karplus, Levitt, Warshel) for QM/MM, which in practice was only made meaningful by using DFT for the “QM” aspect)#)
+#+       /#And almost every molecular DFT program used in practice employs spherical integration rules as a *#central technical component#*!#/
+      And almost every molecular DFT program used in practice employs spherical integration rules as a *#central technical component#*!
+
+    - Background: There are three core classes of DFT programs, using fundamentally different underlying technologies:
+      + /#Molecular programs#/: Programs originally targeted at treating /#molecules#/ typically use local, atom-centered basis functions, and grids as described here (#(e.g., Gaussian, Orca, ADF, Molpro, Turbomole, QChem, etc.)#).
+        These approaches originate from the “chemistry side” of theory, and traditionally are primarily used to answer chemical questions.
+      + Solid state programs: Programs targeted at /#condensed systems#/ typically use some variety of global plane wave/augmented plane wave basis set (#(e.g., VASP)#)
+        These approaches originate from the “physics side” of theory, and traditionally have been primarily used to answer physical or materials science questions (although nowadays they are frequently used for chemistry in condensed environments, too)
+      + Specialty programs: There are also some uncommon alternatives, e.g., programs using a direct real-space representation of the orbitals and/or densities (e.g. FEM or DVR/grids).
+        These are mostly used for specialty research purposes in method development (e.g., for single-atom calculations of high accuracy, or guaranteed-precision calculations on small molecules for establishing reference data).
+        ---for most practical applications to molecules or solids, these not competitive with the other mentioned approaches.
+      The integration grids mentioned here are used in the molecular environment, while solid state programs typically use regular Cartesian grids (in conjunction with core-less “soft” pseudo-atoms) to represent the overall density.
+#+     * What are the molecular grids used for in DFT?
+    * Why are {molecular integration grids} used {in DFT}?
+      - Context: xc integrals over space.
+        xc expression generally analytically complicated (in particular, non-linear), and densities not exactly known
+      - Density very un-uniform. But density distributed near-radially close to atomic centers. Getting them right there is *#very#* important. Due to high accuracy demands, even minimal errors near the cores can and *#will#* break the calculation
+    * How are {spherical rules} used {in} constructing {molecular integration grids}?
+      - Atomic grids: atom centered, and weighted against each other (smooth Voronoi)
+      - For the atomic grids: atomic rules combined with angular grids
+      - As of 2020, Lebedev grids are used near-exclusively for the angular part.
+        The grids from `aigg` are meant to replace those, as higher quality alternatives and with finer granularity.
+    * Which {advantages over earlier grids} do we see?
+#+     How do aigg-generateds grids help, compared to earlier grids?
+      - So far, Lebedev grids used near exclusively.
+        And not always obtained from original sources, and several grids commonly distributed in unofficial sources have turned out to be inaccurate.
+      - Our grids: fewer points, better balance, guaranteed accuracy and numerical precision.
+        Additionally, we provide full transparency: literally every interested party can download and run `aigg` to either re-generate or verify the correctness of a given spherical integration rule.
+        This may seem trivial -- but as mentioned, this was simply not the case before.
+      - All grids distributed with the AIG libraries have been tested -- not only with regard to formal correctness (i.e., making sure that each order $L$ rule does indeed integrate all spherical harmonics $Y_{lm}(\theta,\phi)$ with $l\leq L$ numerically exactly), but also in the sense of providing the expected level of accuracy if used the construction of molecular integration grids and employed in DFT calculations.
+      - Less issues with geometry optimization
+      - Full coverage of $L$ space, and each rule well tested in practice.
+        $\Rightarrow$ may enable /#real#/ adaptive integration grids, rather than the extremely heuristic grid pruning commonly done.
+#+         - (#(power usage in computing centers?)#)
+      - While some of these aspects may appear minor at first glance, note that molecular DFT calculations are globally deployed on such a /#massive scale#/ (see “DFT is a big deal” above), that even a modest hypothetical 1% improvement in calculation efficiency might well represent electrical power savings corresponding to several full 1000 MW electric power plants.
+        And in many calculations, the improvements mentioned here could result in much larger improvements to efficiency and stability of molecular DFT calculations
+        - (#Note that this is not /#only#/ a matter of the number of integration points, which directly influence the calculation efficiency of the xc-integration:#)
+        - (#The quality of the integration rules may well make a /#qualitative difference#/ with large consequences; for example, ...#)
+          - (#...between a DFT-based geometry optimization which converges at first try, and one which fails, then needs to be manually investigated, setup again and repeated from the very start;#)
+          - (#...or between a (very expensive) nuclear Hessian calculation to confirm the nature of a stationary point on a potential energy surface which is either acceptable as is, or reveals the presence of some unexpected imaginary frequencies caused by grid-related numerical noise, indicating that /#the entire calculation#/ is invalid -- including the geometry optimization which preceeded it -- and must be completely repeated with an adjusted calculation protocol involving more accurate grids.#)
+
+          (#In fact, these issues are prevalent enough that many users of computational chemistry software use molecular integration rules with a very high target accuracy unconditionally -- including in the majority of cases where they are not needed -- for the sole sake of /#avoiding the hassle#/ associated with such problems from the outset (basically, trading computing time for human time).
+          However, this practice can /#greatly#/ increase the computation time associated with a certain research task, and if better grids would prevent the need for that, a lot would be won.#)
+          - (*Note that also very real practical issues with integration grids may not necessarily be attributed to said grids by users of software. This is not commonly something considered from the outset.*)
+#+            from the outset
+#+          or a non-acceptable vibrational frequency calculation
+#+         converging or non-converging
+
+#+ * Obtaining aigg-generated tabulated Angular Integration Grid (AIG) libraries, and incorporating them in your own programs
+#+ * The Angular Integration Grid (AIG) libraries: Spherical rules for your own programs
+#+   * What are the Tabulated Angular Integration Grid (AIG) libraries?
+* {The AIG libraries}: Spherical rules for your own programs
+  * {What are} the tabulated angular integration grid {(AIG) libraries}?
+    - To simplify incorporating `aigg`-generated integration rules in other programs,
+      we here provide a separate set of program components -- >#TabulatedAngularIntegrationGridLibrariesSection#<{the AIG libraries} -- which allow for easily using well-defined collections of spherical integration rules in various programming languages.
+      These are separate objects from the generator `aigg` itself (see ^#AiggProgramSection#^{the aigg program section}).
+    - The AIG libraries are very simple program components which, for all practical purposes, can be viewed as systematic collections of integration rule data.
+      Effectively, they consist of a curated set of spherical integration rules, which we optimized, tested, and selected, for use in other programs.
+    - The AIG libraries therefore only provide the following functionality:
+      + *#Enumerating#* the stored angular integration grids
+      + *#Querying#* their core properties. E.g., the number of points $N$ in the grid, the order $L$ (#(=highest $L$ up to which they integrate exactly all spherical harmonics $Y_{lm}(\theta,\phi)$ with $l\in\{0,1,\ldots,L\}$ and $m\in\{-l,\ldots,+l\}$)#), symmetry type, weight spread, literature citation,
+      + *#Instanciating#* the contained grids. That means obtaining the explicit list of grid points $\{\vec r_g\}$, with $g\in\{0,1,\ldots (N-1)\}$, and associated weights $\{w_g\}$, which make up the angular integration grid (=spherical integration rule).
+      + *#Identifying#* the represented version of the angular integration grid collection (#(to distinguish it from future or past releases of integration rule collections)#)
+    (#Background note:#)
+    - (#Internally, the AIG libraries do not store the points of the integration rules as raw data.#)
+    - (#Rather, for each integration rule, they only contain an “irreducible” subset of information:
+#+       regarding the integration rules as raw data:
+      namely the set of /#“seed points”#/ of the integration rules (#(see article. These are symmetry unique points of the rule; or, in group theory language: for each point $\vec r_i\in\spa{R}^3$ of the actual rule, there is only a single canonical representative $\vec r_q\in\spa{R}^3$ of the group orbit
+      \[ \groupname{G}(\vec r_q) = \{\groupelement{g}(\vec r_q);\,\groupelement{g}\in\groupname{G}\}\]
+      in which $\vec r_i$ is contained.)#), and their associated weights and orbit types.#)
+    - (#This essential data is then combined with simple code for generating group orbits (for each orbit type and each supported symmetry group) to obtain the output point lists used in the host program, which make up the actual integration rules.#)
+    - (#Compared with storing actual point lists, this approach greatly reduces the amount of stored information, and therefore greatly reduces the compiled code size and amount of required memory.#)
+#+     - Their sole purpose is to enumerate the sets of contained integration grids (which
+#+   * Legal matters
+  * {Incorporating AIG libraries} into host programs
+    - The AIG libraries are redistributable libraries which provide the main access to the tabulated integration rule data generated by `aigg`.
+    - The AIG libraries are designed for minimal amounts of hassle when incorporating them into host programs:
+      - We provide variants for multiple programming languages popular in scientific computing (C++98, Fortran90, Python2/3), and variants for other languages can be easily ported from those
+      - For each language, they consist of only one to five source files
+
+        (#(While we call them /#“libraries”#/, in practice one would typically just /#copy#/ the corresponding AIG library source files into the host programs source code tree, rather than building them as separate static or dynamic link libraries. So there is no/minimal need to adjust build scripts, and no need to add external dependencies)#)
+      - For reasons of compatibility, the AIG libraries use only very basic features of the corresponding programming language standard, and do not add any dependencies on third party libraries or special compilers.
+#+     - While we call them “libraries”, in practice the one would typically just /#copy#/ the corresponding AIG library source files into the host programs source code tree, rather than using them as “libraries” in the technical sense of the term (static or dynamic link libraries).
+    - The AIG libraries are distributed under a /#“do as you like, as long as you don't blame us if anything goes wrong”#/-license (see enclosed license files for details):
+
+      - Essentially, you may use the code of the AIG libraries in any way you see fit, without royalties: in commercial, semi-commercial, or non-commercial programs; in programs with closed, shared, or open source; with or without attribution; in single programs or redistributed as part of other programs or libraries
+      - This holds as long as you understand that we (the authors) provide /#no guarantees of fitness of the AIG libraries for any purpose#/ (in particular, we do not /#guarantee#/ that any of the code in the libraries actually does what it says it does), and therefore also understand that we do not take /#any#/ responsibiliy for /#any#/ potential damages or liabilities resulting from the use of the code, and as long as notes describing this legal prerequisite for using our code are retained in redistributed versions.
+
+    - While not strictly required, we would appreciate it if...
+      - ...the use of these libraries were pointed out in the host program's manual or documentation at an appropriate place (including a link to this website and possibly a link/citation to its ^#AiggArticle1#^{scientific article}),
+      - ...if scientific projects using the libraries would include an appropriate citation to its ^#AiggArticle1#^{scientific article}
+      - ...and if notes describing the origin of the code were retained in the source files if modified (including pointers to this website), particularly if the modified versions are redistributed as parts of other projects.
+      Doing so would allow us to take (scientific) credit for these developments, facilitate our continued development of the project, and also allow potentially later users of the software to obtain original or updated files in the future.
+#+      (apart from the “provided as is with not guarantees of fitness for any purpose” clause)
+#+     for generated grid instanciation libraries (different from aigg program library itself)
+
+#+       Note the distinction between `aigg` and the AIG libraries:
+#+       ...didn't you say `aigg` is licensed under GPLv2?
+    NOTE: license(`aigg`) != license(AIG libraries)
+    - Note that unlike the tabulated AIG libraries we provide here, the `aigg` program /#itself#/, which was used to /#generate#/ the data tabulated in those libraries, is licensed under a GPLv2 license.
+    - However, as mentioned, `aigg` itself **is not required** to use the tabulated grid libraries in other programs.
+
+    - Typically, other programs would /#only#/ incorporate the tabulated AIG libraries, not `aigg` itself or parts thereof.
+      - For this reason, the `aigg` license does not apply to programs using only the AIG libraries.
+        In particular, using the AIG libraries does not place the host program under GPL, nor does it imply any other strict legal consequences for the host program (except the transfer of potential legal liabilities or damages resulting from use of the AIG libraries from us to the legal entity associated with the host program)
+  * {Obtaining} the tabulated {grid libraries}
+  * Interface definitions
+    Each version of the AIG libraries essentially exposes the following two functionalities:
+    - Enumeration of available grids, including properties
+    - Generation of arrays which define the $\{(\vec r_g, w_g);\,g\in\{0,1,\ldots,(N-1)\}\}$ data of the grid.
+
+    * Conventions on raw grids
+      The raw grids exported by the AIG libraries follow the following conventions:
+      - They always represent the /#unit sphere#/ $\spa{S}_2\subset \spa{R}^3$; that is, the (two-dimensional) sphere in 3D space $\spa{R^3}$ around the coordinate origin (zero vector), with unit radius.
+      - In particular, all returned grid points $\vec r_g$ will fulfill
+        \[ \norm{\vec r_g} = \sqrt{x_g^2 + y_g^2 + z_g^2} = 1. \]
+        up to numerical precision.
+      - *#The returned weights are normalized to unity, not to $4\pi$!#*
+
+        Concretely, the returned weights will fulfill the condition
+        \[ \sum_{g=0}^{N-1} w_g = 1\]
+        up to numerical precision, rather than $\sum_g w_g=4\pi$, as one could also define (#(and, in fact, ^#SphericalIntegrationRuleSection#^{as we did earlier})#).
+      The second condition means that the /#actual#/ approximation represented by the rule is
+      \[ \int_{\spa{S}_2} f(\vec r)\,\d\Omega \approx 4\pi \sum_g f(\vec r_g) w_g. \]
+      So the $4\pi$ factor of the solid angle integral must be supplied separately, and will typically be included as part of the /#volume element#/ $4\pi\,r^2\,\d r$ when instanciating a series of spherical rules around a center $\vec c$ to cover $\spa{R}^3$ space (see next section and the ^#MolecularIntegrationGridSection#^{section on molecular integration grids}).
+    * {Spherical grids} for spheres {of radius $r$ around center} $\vec c$
+      - The returned raw grids can be easily translated into spherical rules which integrate a sphere of any radius $R>0$ around any center $\vec C\in\spa{R}^3$.
+      - Concretely, let $(\vec r_g,w_g)$ define a 1-normalized unit sphere grid as (as generated by the AIG libraries).
+        Define its transformation:
+        \[[ \vec r_g' &=& \vec C + R\,\vec r_g
+        \\  w_g' &=& 4\pi R^2 w_g.
+        \]]
+      - Then the following integral approximation holds:
+        \[ \int_{S(\vec C,R)} f(\vec r)\,\d\Omega \approx \sum_g f(\vec r_g')\,w_g' \]
+        where $S(\vec C,R)$ denotes the sphere in $\spa{R}^3$ space of radius $R>0$ around point $\vec C\in\spa{R}^3$:
+        \[ S(\vec C, R) := \bigl\{ \vec r\in\spa{R}^3:\, \norm{\vec r - \vec C} = R \bigr\}.\]
+        The Python version of the libraries includes a function to generate grids in this transformed manner directly at $(\vec C, R)$.
+      - Note that in many practical applications, it is advisable to additionally orient the grids into a object-local frame, by applying a suitable $(3,3)$-shape rotation matrix to the $\vec r_g$ before transforming them to $(\vec C, R)$.
+        The reason for this is that the grids are not perfectly rotationally invariant (that is impossible for finite grids!), and aligning the grids into a fixed object-local frame can work around certain calculation artifacts
+        (#(e.g., in molecular integration grids in DFT, this will make DFT energy of the molecule independent of the molecule's orientation in $\spa{R}^3$ space)#).
+  * {Example} of using them {in C++}
+  * {Example} of using them {in Fortran}
+  * {Example} of using them {in Python}
+
+#+ * Introduction to aigg and the AIG libraries
+* {The aigg program}: Generating new spherical integration rules
+#+   * What does the aigg program do?
+  * {Introductory comments} on the {aigg} program
+#+     - In one spatial dimension, there are many well-known integration rules (aka “quadrature rules”), which afford efficient ways of numerically approximating definite integrals via
+#+       \[  \int_a^b f(x)\,\d x = \sum_{g=1}^N f(r_g) w_g. \]
+#+       The “integration rule” in this case is the set of _#grid points#_ $r_g\in[a,b]$ (aka “ordinates”) are to be placed, combined with their associated _#weight#_ $w_g$ (#(in a more abstract sense, the term “integration rule” is sometimes also used to denote the /#algorithm#/ to determine the $\{(r_g,w_g);\,g=1,\ldots, N\}$, rather than the resulting set of points and weights itself)#).
+#+
+#+       In particular,
+#+
+#+     targeting different classes of functions:
+#+       For example:
+#+       + /#Gaussian quadrature:#/
+#+       Quadrature
+#+ #+     classes of integration rules are known for integrating certain classes of
+    - First: >#AiggProgramSection#<{`aigg`} stands for Angular Integration Grid Generator. It is the program for /#constructing#/ and /#optimizing#/ spherical rules, which are then typically gathered and tabulated for use in other programs
+    - ***Downloading, installing, or running `aigg` is not required to use the generated spherical integration rules***.
+      + Just /#using#/ integration rules is the /#typical#/ use case. This is much simpler than generating them, and if that is what you are after, see the section on using the ^#TabulatedAngularIntegrationGridLibrariesSection#^{Tabulated Angular Integration Grid Libraries}.
+      + For almost every practical usage case of spherical grids in chemistry, one would never need to bother with `aigg` itself, and simply use the pre-packed grids!
+    - As mentioned, `aigg` is used to /#compute and optimize#/ the spherical integration rules /#themselves#/.
+      It is what was used to /#construct#/ the rules which the AIG libraries (=tabulated grid libraries) contain.
+      The main source of the `aigg` program, and most of this documentation (this site), are not required to use resulting rules (#(...but we do appreciate citations to our ^#AiggArticle1#^{scientific article})#)
+    - We publish `aigg` and this documentation mostly for reasons of transparency (there really is no reason not to -- and the grids are important enough that we think the exact process in which they are generated should be made public), and as a community resource to facilitate specialty developments by other researchers.
+
+#+ * Running aigg / using aigg to generate new angular integration grids
+  * When should I install, run, or modify aigg?
+    First, when do you /#not#/ need the actual `aigg` program?
+    - If you just wish to try out or incorporate our spherical integration rules in your own program,
+      we recommend using ^#TabulatedAngularIntegrationGridLibrariesSection#^{our pre-packed spherical rule sets}.
+    - In this case, there is /#no need#/ to either install or run `aigg`.
+      See section on ^#TabulatedAngularIntegrationGridLibrariesSection#^{“tabulated angular integration grid libraries”} for this case.
+
+    However, if you wish to develop /#new#/ spherical integration rules, or wish to see or reproduce how exactly the tabulated rules were made, this section may be of relevance for you. In particular, here are some examples for when you may wish to run or modify `aigg`:
+
+    Some examples of projects one might be interested in, using aigg as-is:
+    - Searching better grids, based on novel initial guesses, optimization strategies, or convergence control algorithms
+    - Generating rules of higher (or just different) orders than presently tabulated
+    - Generating a complete set of rules for specific point groups (#(e.g., only grids of octahedral symmetry which have exact full D2h symmetry)#)
+    - Generating rules with an output numerical accuracy higher provided in the reference libraries
+      (#(we typically provide prepacked libraries with data tabulated to full /#“double precision”#/ (64bit floats) and 128bit floating point precision. If for a special application you need more, you can reoptimize the reference rules to higher precision with `aigg`)#)
+
+    Some examples of projects one might be interested in, which would require modifications/extensions of the aigg program, or for which the present `aigg` may be useful as a starting point:
+#+     , or polyhedral ones including inversion symmetry
+    - Modifying `aigg` to include additional point groups (#(e.g., axial ones)#)
+
+#+       (#(aigg presently uses 128bit floating point arithmetic internally by default, and the tabulated-grid-libraries generate grids with guaranteed full 64bit float accuracy. But some specialty applications could need even higher precision in some contexts)#)
+    - Making spherical integration rules for sets of target functions different than the full set of spherical harmonics/Cartesian monomials up to a certain order in $L$
+      (#(e.g., if one were to know that for an application in a given program, all functions integrated with the numerical integration rules always had certain additional symmetries or other properties not necessarily exposed by the sets of spherical harmonics. In that case it may be possible to generate more efficient specialty integration rules for these classes of functions than possible for the spherical harmonics; i.e., which require less points to integrate these functions exactly than would be needed to integrate the full sets of spherical harmonics exactly)#)
+    - Making integration rules for manifolds other than straight unit spheres, or including weight functions $w(\vec r)$ which are not uniformly equal to 1
+      (#(e.g., for half-spheres, or elongated spheres or cylinders etc.)#)
+    - Making sets of spherical integration rules for space dimensions other than three (#(e.g., integration rules for the four-dimensional sphere)#)
+#+     - Making non-separable optimized integration rules for 3D unit balls (i.e., the set of points $\vec r\in\spa{R}^3$ with $\norm{\vec r}\leq 1$) or sphere shells of finite thickness $h>0$ (i.e., the set of points $\vec r\in\spa{R}^3$ with $\norm{\vec r}\in\bigl[1-\frac{h}{2},1+\frac{h}{2}\bigr]$)
+    - Making non-separable optimized integration rules for 3D unit balls:
+      \[ B_3=\bigl\{\vec r\in\spa{R}^3\;\text{with}\;\norm{\vec r}\leq 1\bigr\}\]
+      or sphere shells of finite thickness $h>0$:
+      \[ S_{2,h}:=\Bigl\{\vec r\in\spa{R}^3\;\text{with}\; \norm{\vec r}\in\bigl[1-\efrac{h}{2},1+\efrac{h}{2}\bigr]\Bigr\}\]
+
+    ...or just general research of integration rules, or just plain general interest in the topic.
+
+#+     aigg is what you use if you:
+#+     0 if you wish to develop /#new#/ spherical integration rules
+#+     However, if you wish to develop /#new#/ spherical integration rules
+
+#+       If you are looking for our pre-packed spherical rule sets, you do not need to either install or run aigg. See chapter on “tabulated grid libraries” in this case.
+  * Compiling aigg
+    * Library dependencies
+      - Eigen
+      - Boost (in particular, boost/multi_precision)
+      - Only tested with gcc. Uses gcc's __float128 option, if available.
+
+        (#(since the rule optimizer is targeted at a small number of developers, the explicit compiler, library, and platform dependencies seem acceptable. Note also that the program will run fine in both WSL (the windows subsystem for linux) and an actual linux VM)#)
+      - scons as build system
+      - Only tested on linux
+    * {Setup of build environment} in SConstruct
+    * Parellelization
+      - ...is technically enabled using OpenMP; however, much time is spent on linear algebra
+        routines, and apart from a small number of exceptions, these are not parallelized in Eigen.
+        And it does need eigen, because it requires the ability to use high precision floating
+        point arithmetic.
+      - Recommended procedure is to simply start many instances of `aigg` at once (for different rules), using `nice` to tell them to make way for other programs. We have found this to work okay even when starting thousands of grid optimization jobs at the        same time, on a single notebook computer.
+  * Command line invocation
+    - either commands directly on the line
+    - of stored in input files
+    - commented examples are given in `inputs/` directory
+    - Here only main options. Full set of command line options described in `SearchOptions.cpp`.
+      Examples for main usage cases also given below.
+  * Incremental optimization schedules
+    For the larger grids, there are two issues with running the described optimization procedure to obtain a target grid of maximum order $L$ directly:
+    - First, we generally do not know what is the largest order $L$ which an optimized spherical integration rule could possibly realize for a given set of orbits. Consequently, it is not clear which $L$ to choose for optimizing
+    - Second, obtaining an reasonable initial guess of the seed points, which makes it likely that the iterative optimization converges, can be rather difficult if the points have to be guessed ex nihilo.
+
+  #+       Both problems can be addressed by running an _#incremental optimization schedule#_, instead of attempting to optimize the target rule for (unknown) target order $L$ directly.
+  #+       As an example, consider the following process:
+  #+       - Assume we have given an initial set of seed points $\{\vec r_q\}$, which are not necessarily obtained as result of any specific optimization.
+  #+       - We may choose a (small) initial $L$, for which likely an exact integration rule can be obtained (in principle, even $L=0$).
+  #+       - We can then repeat the following process:
+  #+         - /#Step 1:#/ Optimize the seeds and weights for this target $L$.
+  #+         - /#Step 2:#/ If at convergence $r$ is very close to numerical zero ($r<\text{thr-res}$, e.g., $r<10^{-25}$), then the integration rule is considered exact for order $L$.
+  #+           - If the optimized rule is exact for order $L$, increase $L$ and go to /#Step 1#/
+  #+           - If the optimized rule is not exact for order $L$, decrease $L$ to last known working $L$, re-optimize the points and weights, and exit.
+  #+       That is, the parameters of the rule are optimized step by step, for increasingly large target orders $L$.
+  #+       And this is done until an $L$ is found for which `aigg` is no longer able to determine a set of $\{\vec r_q\}$ which yield an exact numerical integration of the target space.
+  #+       The advantages of this process are that (a) the target $L$ does not need to be known beforehand; rather, it is a result of the optimization process, and (b) at each $L$ step, the change in the distribution of points $\{\vec r_q\}$ is smaller than it would be if one were to optimize the rule for the target $L$ directly (without the interemediate steps); this simplfies convergence of the process.
+    Both problems can be addressed by running an >#IncrementalScheduleSection#<{_#incremental optimization schedule#_}, instead of attempting to optimize the target rule for the (generally unknown) target order $L$ directly.
+    In this case, one performs a series of optimizations with gradually increasing (or decreasing) $L$, each time using the result of the last optimization as starting guess.
+  #+       So the parameters of the rule are optimized step by step, for increasingly large target orders $L$.
+    - For an incremental upward search, this is done until an $L$ is found for which `aigg` is no longer able to determine a set of $\{(\vec r_q,w_q)\}$ which yield an exact numerical integration of the target space.
+    - For an incremental downward search, this is done until the first $L$ is found which integrates exactly.
+
+  #+       The advantages of this process are that (a) the target $L$ does not need to be known beforehand; rather, it is a result of the optimization process, and (b) at each $L$ step, the change in the distribution of points $\{\vec r_q\}$ is smaller than it would be if one were to optimize the rule for the target $L$ directly (without the interemediate steps); this simplfies convergence of the process.
+
+    `aigg` supports both /#upward#/ and /#downward#/ incremental search schedules, and allows starting the schedule at arbitrary points and using arbitrary step widths, as well as performing a fixed set of additional operations once the breaking condition is met.
+
+    Example input `inputs/1-incremental-search-up.ini`:
+    #+BEGIN_PYTHON
+    # Make an initial guess using a hexagonal grid with s=5 and t=1 parameters as
+    # described by Ahrens & Beylkin. Then do a series of grid optimizations, each
+    # time using the result of the last calculation as initial guess:
+    #
+    # - First optimize the points & weights of this grid for to minimize the
+    #   residual for the monomials of degree l <= 4 ('[4,..]').
+    # - Then keep on increasing l by +1 (step:+1) until we find the first l for
+    #   which the optimized grid DOES NOT integrate the monomials of degree l
+    #   exactly (in this case (the hex{5;1}-grid) this will be lfinal=30).
+    # - Afterwards, optimize the grid for lfinal-1 ('..,-1]') (which is 29 in this
+    #   case), using the converged, but non-exact solution for lfinal as starting
+    #   guess. The resulting grid will be exact for order 29 again, but will in this
+    #   case possibly show a somewhat better weight distribution
+    { point-group: icosahedral;
+      degree: [4,step:+1,-1];
+      max-step: 1e4*residual;
+      initial-points: hex-grid{5;1;01c}
+    }
+    #+END_PYTHON
+    Example input `inputs/2-incremental-search-down.ini`:
+    #+BEGIN_PYTHON
+    # as 1-incremenal-search-up, but now search incrementally in DOWNWARD direction.
+    # The first grid optimized will be of degree l=35. Then we decrease l by 1
+    # (step:-1) until we find the first grid which integrates exactly.
+    #
+    # additionally, this config shows more fine-tuning options for the step size: by
+    # default use a maximum step size of 10^4 times the current residual, but never
+    # restrict the step size to maximum steps smaller than min:1e-9, and never allow
+    # steps larger than 7e-4.
+    #
+    # In this case, this finds the same grid as the final result of the
+    # 1-incremental-search-up.ini, but this may different in other cases.
+    { point-group: icosahedral;
+      degree: [35,step:-1];
+      max-step: {1e4*residual; max:7e-4; min:1e-9};
+      initial-points: hex-grid{5;1;01c}
+    }
+    #+END_PYTHON
+    *#Comments:#*
+    - Generally, incremental upward searches with steps of either $+1$ or $+2$ appear to be most useful.
+    - For steps of two, it may be advisable to perform separate optimization runs starting at an even and at an odd initial $L$; e.g.,
+      ```
+      degree: [4,step:+2,-1,-2]
+      ```
+      and
+      ```
+      degree: [5,step:+2,-1,-2]
+      ```
+    - In an upward search, such as here, the entries `[…,-1,-2]` mean that after the $L_\mathrm{mx}$ is found which no longer integrates exactly, first attempt to optimize a rule with $L=(L_\mathrm{mx}-1)$. If this rule optimizes exactly $\Rightarrow$ exit. Otherwise, proceed with $L=(L_\mathrm{mx}-2)$. Each time the result of the last optimization is used as starting guess.
+      Further schedule entries may be given for larger incremental step widths.
+  * {Refining existing} integration {rules}
+    `aigg` may be used to either >#RefineExistingRuleSection#<{verify or refine existing integration rules} supplied as input data in rather general formats.
+
+    - If used in this way, `aigg` will read the initial seed points from an externally given text file, and use these as starting guess for a grid optimization.
+      The input file is specified in the rather free form format described below (#(the weights, if given, are ignored)#),
+
+    - The seed points may be given in terms of either Cartesian coordinates, or in terms of ^#https://en.wikipedia.org/wiki/Barycentric_coordinate_system#Barycentric_coordinates_on_triangles#^{barycentric coordinates} with respect to the ^#FundamentalRegionsSection#^{fundamental region}.
+
+    Example input `inputs/3-refine-initial-grid.ini`:
+    #+BEGIN_PYTHON
+    # This time do the following:
+    # - Read the initial cartesian points from a data file (e.g., a
+    #   set of points made by previous runs of the grid optimization).
+    #   The file here is called points 'inputs/312-guess.txt' (where
+    #   'inputs' is the directory relative to the current directory).
+    #
+    #   Regarding the file format, the following conventions hold:
+    #     * The first line of the file is ignored.
+    #     * Of every other line, the first three elements separated by spaces
+    #       are read as cartesian coordinates. The rest of the line is ignored
+    #       (including possible weights, if given)
+    #     * File reading ends once we encounter a line which cannot be read
+    #       as three floating point numbers.
+    #     * Lines startig with '#' or '//' are ignored.
+    # - Then optimize a grid of degree 30 with these starting points, and
+    #   use its result as initial guess for an optimization of degree 29.
+    { point-group: icosahedral;
+      degree: [30,29];
+      max-step: {1e4*residual; max:7e-4; min:1e-9};
+      initial-points: read-cartesian{inputs/points-312-guess.txt}
+    }
+    #+END_PYTHON
+    Example input `inputs/4-refine-barycentric-coordinate-guess.ini`:
+    #+BEGIN_PYTHON
+    # as 3-refine-initial grid, but this time read the input positions as
+    # barycentric coordinates of the fundamental region (for icosahedral,
+    # tetrahedral, and octahedral grids this is a triangle in all cases). The inputs
+    # is given in triples of tau0, tau1, tauC. What these mean depends on the point
+    # group (see ConvertBarycentricToCartesian function).
+    #
+    # For icosahedral grids, both tau0 and tau1 refer to vertices of the
+    # icosahedron, and tauC refers to the mid point ('c'entral point) of an
+    # icosahedron face.
+    #
+    # The file format works as in the cartesian case: The first line is ignored, and
+    # only the first three scalars are read as actual input. Reading stops once we
+    # reach a line which does not start with three scalars.
+    { point-group: icosahedral;
+      degree: [step:+1,-1];
+      max-step: 1e-3;
+      initial-points: read-barycentric{inputs/barycentric-guess.txt}
+    }
+    #+END_PYTHON
+
+  * {Exporting and visualizing} integration {rules}
+    If the optimized rules are meant for further processing (or packaging),
+    it is advisable to ask `aigg` to export the core information of the optimized grid to a separate data file, rather than attempting to parse it from the `aigg` standard output.
+    Doing so also allows automatically retaining only the /#“best”#/ version of a rule encountered during a optimization schedule (see comments below).
+    This is done using the `export` option as shown here:
+
+    Example input `inputs/6-export-and-visualization.ini`:
+    #+BEGIN_PYTHON
+    # This file contains a command to export the final integration points to a data
+    # file. With 'points: all', all symmetry-equivalent points will be explicitly
+    # generated and exported (e.g., here, a general seed point leads to 60 exported
+    # points, a seed point on a vertex leads to 12 exported points, etc).
+    # Alternatively, one can give 'points:seeds', in which case only the unique
+    # points are exported.
+    #
+    # If the required python packages are installed and a suitable graphics card
+    # driver is present, the so-computed grid points can be visualized with
+    #
+    #     visualize_rule.sh ico-3-2.dat
+    #
+    # (use filename you used for export, here 'ico-3-2.dat')
+    { point-group: icosahedral;
+      degree: [15,step:+1,-1];
+      max-step: 1e4*residual;
+      initial-points: hex-grid{3;2;01c};
+      export: {file: ico-3-2.dat; format: text; points: all}
+    }
+    #+END_PYTHON
+    In this case, running `aigg --config inputs/6-export-and-visualization.ini` generates a file `ico-3-2.dat` with the following content:
+    #+BEGIN_PYTHON
+    # icosahedral integration rule: npts = 192, lmax = 23, wtsp = 1.298, res = 9.49e-33
+    # generated by kgaigg v20200620 (compiled: Jun 20 2020)
+      8.506508083520399321815405e-01   0.000000000000000000000000e+00   5.257311121191336060256691e-01   4.164880157580242505412690e-03   12   (icosahedral-vertex)
+      9.389133803811559787521034e-01   1.134729659940559359608633e-01   3.249085257880170314894821e-01   5.077679306001083356874116e-03   60   (icosahedral-general)
+      9.696669087810822363832319e-01   2.278851408290567536955890e-01   8.839936993135930626670278e-02   5.349546802216596883184665e-03   60   (icosahedral-general)
+      9.903922163546059654139378e-01   6.106051248825701525715709e-02  -1.240760718224218169143828e-01   5.406464526932937925525348e-03   60   (icosahedral-general)
+    #+END_PYTHON
+    This indicates an integration rule with:
+    - `npts=192` $\{(\vec r_g,w_g)\}$ points total, generated from four seed points: one on a ^#SpecialOrbitsSection#^{special icosahedral vertex orbit} with 12 points, and three on ^#SpecialOrbitsSection#^{general icosahedral orbits} with 60 points each.
+    - Order `lmax=23`; that is, a rule which integrates all spherical harmonics $Y_{lm}(\theta,\phi)$ with $l\leq 23$ numerically exactly (or, ^#MonomialsVsSphericalHarmonicsSection#^{equivalently}: all Cartesian monomials $m_{ijk}(x,y,z)$ with $i+j+k\leq 23$)
+    - A very small weight spread
+      \[ \text{wtsp} := \frac{\max(\{w_g\})}{\min(\{w_g\})}\]
+      of only `wtsp=1.298`. (#(Assuming that all weights $w_g$ are positive, smaller weight spreads indicate a more even distribution of the grid points $\vec r_g$ across the sphere surface. So, if given a choice, rules with smaller weight spreads are generally preferable)#)
+    - A residual `res` of $e\approx 10^{-32}$.
+      For export purposes, the value exported as `res` is not the final optmization residual, but rather
+      the maximum absolute error $e$ obtained as difference of the exact analytical result and the numerical integration result using the given rule, over the full set of Cartesian monomials $m_{ijk}(x,y,z)$ with $i+j+k\leq l$.
+      (#(/#all#/ of them are explicitly computed before export and $\max(\ldots)$'ed over)#)
+    The visualization of this file generated py `visualize-rule.sh ico-3-2.dat` produces the image
+    <div><img style="padding: 4px; background-color:#fff; border-color:#000; border: none; width:50%; margin-left:25%; height:auto;" src="img/ico-3-2.png" alt="ico-3-2 integration rule visualization"></div>
+    (#(the centers of the colored disks indicate the integration points $\vec r_g$ of the grid; and both the colors and sizes of the disks on the unit sphere encode the weights $w_g$ of the corresponding integration points. Concretely, the visual area of the disks is approximately equal to the area given by the integration weight $w_g$ represented by the point $r_g$ of its center. This particular rule is very good: The disks are very evenly distributed over the sphere, and have very similar represented areas. See ^#AiggArticle1#^{our article} for a full description of how to read these visualizations)#)
+
+
+    ⟨newline⟩
+    *#Comments:#*
+    - By default, `aigg` will not export grids which
+      - ...either do not integrate the current target $L$ exactly (#(this decision is based the option set for `thr-res`)#),
+      - ...or do integrate the given target $L$ exactly, but a previous grid in encountered during the current incremental optimization schedule integrated a larger $L$ exactly,
+      - ...or do integrate the given target $L$ exactly, but have a “worse” weight spread than another grid previously encountered during the current incremental optimization schedule which /#also#/ integrated this $L$ exactly.
+
+        The current weight spread is considered “worse” if either it is negative, while the previous one was not; or if both weight spreads are positive, if the current weight spread is larger than the previous one.
+      With these precautions, the last grid exported in the course of an incremental optimization schedule is typically the most reasonable one encountered in the course of the entire optimization.
+  * Types of {initial guesses}
+    - Set points on fundamental domain, and map them through the group across the sphere>#InitialGuessesSection#<{:}
+    <div><a href="img/initial-guess-concept-1-2048.png"><img style="padding: 4px; background-color:#fff; border-color:#000; border: none; width:90%; margin-left:5%; height:auto;" src="img/initial-guess-concept-1.png" alt="illustration of spreading grid points across the entire sphere surface by defining them on the fundamental domain of a polyhedron and then replicating them using the point group symmetry operations"></a></div>
+
+
+    - Hex grid
+    - Subdiv surface
+    - *#Explicit seed point lists#*:
+#+     (in terms of barycentric or Cartesian coordinates):
+      Independently of the systematic initial guesses, `aigg` may also be given an explicit list of input points to start the optimization from.
+
+      The set of input points may be given in either Cartesian coordinates or barycentric coordinates of the fundamental region, and is specified as described in the ^#RefineExistingRuleSection#^{section on refining initial grids}.
+      In the current case, one would combine this input with a ^#IncrementalScheduleSection#^{standard incremental search schedule}, rather than a schedule for a single targeted $L$.
+
+
+
+* Literature citations
+  - (put literature citations here)
+
+  - `Link{AiggArticle1}`: #AiggArticleUrlGoesHere
+  - `Link{AhrensBeylkin}`: https://doi.org/10.1098/rspa.2009.0104
+
+
+#+ kate: indent-width 2; syntax OrgMode
