@@ -149,7 +149,7 @@ $$ \sum_g w_g = 1, $$
 
 rather than $4\pi$. Consequently, a full solid-angle integral is represented as
 
-$$ \int_{S^2} f(\mathbf r)\,d\Omega \approx 4\pi \sum_g w_g f(\mathbf r_g). $$
+$$ \int_{S^2} f(\mathbf r) \mathrm{d}\Omega \approx 4\pi \sum_g w_g f(\mathbf r_g). $$
 
 This convention applies to the distributed AIG libraries; consult the full documentation for details and file-format conventions.
 
