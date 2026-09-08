@@ -155,7 +155,7 @@ This convention applies to the distributed AIG libraries; consult the full docum
 
 ## Documentation
 
-Full documentation, including background on integration rules, what `aigg` actually does — any why —, and info on point groups, symmetries, etc, is available at:
+Full documentation, including background on integration rules, what `aigg` actually does — and why — and info on point groups, symmetries, etc, is available at:
 
 [**https://knizia.me/aigg/**](http://knizia.me/aigg)
 
